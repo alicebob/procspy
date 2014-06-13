@@ -11,7 +11,8 @@ setup: clean
 	rm -f arg.c util.c # some unneeded stuff.
 	# Fix conflict with global regex.h, gobuild adds '-I .'
 	mv regex.h localregex.h
-	sed -i 's/regex.h/localregex.h/' lsof.h
+	#sed -i 's/regex.h/localregex.h/' lsof.h
+	perl -i -pe's/regex.h/localregex.h/' lsof.h
 
 .PHONY: main
 main:
