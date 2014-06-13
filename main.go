@@ -1,9 +1,10 @@
 package main
 
 /*
-#cgo CFLAGS: -DLINUXV=313007 -DGLIBCV=218 -DHASIPv6 -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -DHAS_STRFTIME -DLSOF_VSTR="3.13.7" -O
-#include "lsof.h"
 
+#cgo linux CFLAGS: -DLINUXV=313007 -DGLIBCV=218 -DHASIPv6 -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -DHAS_STRFTIME -DLSOF_VSTR="3.13.7" -O
+
+#include "lsof.h"
 
 void
 lsof_init()
@@ -24,42 +25,6 @@ lsof_init()
 	Fport = 0;
 	initialize();
 	(void) hashSfile();
-
-	// char options[128] = "";
-    // (void) snpf(options, sizeof(options), "%%%su", INODEPSPEC);
-    // InodeFmt_d = sv_fmt_str(options);
-    // (void) snpf(options, sizeof(options), "%%#%sx", INODEPSPEC);
-    // InodeFmt_x = sv_fmt_str(options);
-    // (void) snpf(options, sizeof(options), "0t%%%su", SZOFFPSPEC);
-    // SzOffFmt_0t = sv_fmt_str(options);
-    // (void) snpf(options, sizeof(options), "%%%su", SZOFFPSPEC);
-    // SzOffFmt_d = sv_fmt_str(options);
-    // (void) snpf(options, sizeof(options), "%%*%su", SZOFFPSPEC);
-    // SzOffFmt_dv = sv_fmt_str(options);
-    // (void) snpf(options, sizeof(options), "%%#%sx", SZOFFPSPEC);
-    // SzOffFmt_x = sv_fmt_str(options);
-
-}
-
-void
-print_lsof()
-{
-	struct lfile *lf;
-	int i, n;
-
-        for (lf = Lf, print_init(); PrPass < 2; PrPass++) {
-            for (i = n = 0; i < Nlproc; i++) {
-            Lp = &Lproc[i];
-            if (Lp->pss) {
-                if (print_proc())
-                n++;
-            }
-            if (RptTm && PrPass)
-                (void) free_lproc(Lp);
-            }
-        }
-        Lf = lf;
-
 }
 */
 import "C"
@@ -79,25 +44,27 @@ type ConnProc struct {
 	Name      string
 }
 
+func init() {
+	C.lsof_init()
+}
+
 func lsof() []ConnProc {
 	C.gather_proc_info()
 
 	res := []ConnProc{}
-	var i int
-	// var p _Ctype_struct_lproc
 	var p C.struct_lproc
+	var i int
 	for i = 0; i < int(C.Nlproc); i++ {
+		// Lproc is a pointer to NULL, Go can't make it an array, it seems.
 		ptr := uintptr(unsafe.Pointer(C.Lproc)) + unsafe.Sizeof(p)*uintptr(i)
-		// var myp *C.struct_lproc
 		myp := (*C.struct_lproc)(unsafe.Pointer(ptr))
 		if myp.pss > 0 {
 			for lf := myp.file; lf != nil; lf = lf.next {
-				// Only use files with 2 (a)ddress (f)amilies.
+				// Only use files with 2 (a)ddress(f)amilies.
 				// Listens will only have one.
 				if lf.li[0].af == 0 || lf.li[1].af == 0 {
 					continue
 				}
-				// fmt.Printf(" . a connection\n")
 				var address net.IP
 				if lf.li[0].af == C.AF_INET {
 					address = net.IP(C.GoBytes(unsafe.Pointer(&lf.li[0].ia[0]), 4))
@@ -115,15 +82,12 @@ func lsof() []ConnProc {
 			}
 		}
 		C.free_lproc(myp)
-		// p = *C.struct_lproc(unsafe.Pointer(uintptr(unsafe.Pointer(C.Lproc)) + unsafe.Sizeof(p)*uintptr(i)))
-		// p = &C.Lproc[0]
 	}
 	C.Nlproc = 0 // Needed to prevent a memory leak.
 	return res
 }
 
 func main() {
-	C.lsof_init()
 	// HASNCACHE NcacheReload = 1
 	// C.print_lsof()
 	for {
