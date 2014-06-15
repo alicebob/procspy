@@ -1,11 +1,14 @@
-package main
+package procspy
 
 /*
+
 // These need to match LSOF_CCFLAGS from version.h:
 #cgo linux CFLAGS: -DLINUXV=313007 -DGLIBCV=218 -DHASIPv6 -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -DHAS_STRFTIME -DLSOF_VSTR="3.13.7" -O
 #cgo darwin CFLAGS: -DHASIPv6 -DHASUTMPX -DDARWINV=1100 -DHAS_STRFTIME -DLSOF_VSTR="13.1.0" -O
 
-#cgo LDFLAGS: -L ./ -llsof -lmylsof
+#cgo CFLAGS: -I ./src
+#cgo LDFLAGS: -L ./ -Wl,--start-group,-Bstatic -llsof -lmylsof -Wl,--end-group,-Bdynamic
+#cgo LDFLAGS: -L /usr/local/lib/procspy
 
 #include "lsof.h"
 
@@ -33,9 +36,7 @@ lsof_init()
 import "C"
 
 import (
-	"fmt"
 	"net"
-	"time"
 	"unsafe"
 )
 
@@ -51,14 +52,14 @@ func init() {
 	C.lsof_init()
 }
 
-func lsof() []ConnProc {
+func Spy() []ConnProc {
 	C.gather_proc_info()
 
 	res := []ConnProc{}
 	var p C.struct_lproc
 	var i int
 	for i = 0; i < int(C.Nlproc); i++ {
-		// Lproc is a pointer to NULL, Go can't make it an array, it seems.
+		// Lproc is a pointer to just a struct_lproc.
 		ptr := uintptr(unsafe.Pointer(C.Lproc)) + unsafe.Sizeof(p)*uintptr(i)
 		myp := (*C.struct_lproc)(unsafe.Pointer(ptr))
 		// fmt.Printf("Name: %v\n", C.GoString(myp.cmd))
@@ -91,6 +92,7 @@ func lsof() []ConnProc {
 	return res
 }
 
+/*
 func main() {
 	// HASNCACHE NcacheReload = 1
 	// C.print_lsof()
@@ -102,3 +104,4 @@ func main() {
 		time.Sleep(100 * time.Millisecond)
 	}
 }
+*/
