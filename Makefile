@@ -5,11 +5,13 @@ all: setup procspy
 setup: clean
 	tar xf lsof_4.87_src.tar && mv lsof_4.87_src src
 	cd src && ./Configure -n `uname -s|tr A-Z a-z`
-	cd src && make # generates version.h and builds liblsof.a
-	cp src/*.[ch] .
+	cd src && make
+	cd src && rm -f main.o
+	cd src && ar cr libmylsof.a *.o
+	cd src && ranlib libmylsof.a
+	cp src/*.[h] .
+	cp src/libmylsof.a .
 	cp src/lib/liblsof.a .
-	rm -f main.c
-	rm -f arg.c util.c # some unneeded stuff.
 	# Fix conflict with global regex.h, gobuild adds '-I .'
 	mv regex.h localregex.h
 	#sed -e 's/regex.h/localregex.h/' -i lsof.h
@@ -21,4 +23,4 @@ procspy:
 
 .PHONY: clean
 clean:
-	rm -rf *.c *.h src/ procspy
+	rm -rf *.[ah] src/ procspy

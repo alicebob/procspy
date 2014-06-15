@@ -1,11 +1,11 @@
 package main
 
 /*
-
+// These need to match LSOF_CCFLAGS from version.h:
 #cgo linux CFLAGS: -DLINUXV=313007 -DGLIBCV=218 -DHASIPv6 -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -DHAS_STRFTIME -DLSOF_VSTR="3.13.7" -O
 #cgo darwin CFLAGS: -DHASIPv6 -DHASUTMPX -DDARWINV=1100 -DHAS_STRFTIME -DLSOF_VSTR="13.1.0" -O
-#cgo LDFLAGS: -L ./ -llsof
 
+#cgo LDFLAGS: -L ./ -llsof -lmylsof
 
 #include "lsof.h"
 
@@ -61,6 +61,7 @@ func lsof() []ConnProc {
 		// Lproc is a pointer to NULL, Go can't make it an array, it seems.
 		ptr := uintptr(unsafe.Pointer(C.Lproc)) + unsafe.Sizeof(p)*uintptr(i)
 		myp := (*C.struct_lproc)(unsafe.Pointer(ptr))
+		// fmt.Printf("Name: %v\n", C.GoString(myp.cmd))
 		if myp.pss > 0 {
 			for lf := myp.file; lf != nil; lf = lf.next {
 				// Only use files with 2 (a)ddress(f)amilies.

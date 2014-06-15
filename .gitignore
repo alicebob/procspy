@@ -1,4 +1,4 @@
 src/
-*.c
+*.a
 *.h
 procspy
