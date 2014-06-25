@@ -60,8 +60,8 @@ func SpyProc() ([]ConnProc, error) {
 
 func walkProcPid() (map[uint64]uint, error) {
 	// Walk over all /proc entries (numerical ones, those are PIDs), and see if
-	// their ./fd/* files link to 'socket[...]' 'files'.
-	// Returns a map from socket id to pid
+	// their ./fd/* files are symlink to sockets.
+	// Returns a map from socket id ('inode`) to PID.
 	// Will return an error if /proc/ isn't there.
 	fh, err := os.Open(procRoot)
 	if err != nil {
@@ -77,13 +77,13 @@ func walkProcPid() (map[uint64]uint, error) {
 		var pid uint
 		_, err = fmt.Sscanf(dirName, "%d", &pid)
 		if err != nil {
-			// Not a number, so not a pid subdir.
+			// Not a number, so not a PID subdir.
 			continue
 		}
 
 		dfh, err := os.Open(procRoot + "/" + dirName + "/fd")
 		if err != nil {
-			// process can be gone by now, or we don't have access.
+			// process is be gone by now, or we don't have access.
 			continue
 		}
 		fds, err := dfh.Readdir(-1)
