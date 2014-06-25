@@ -1,5 +1,7 @@
 package procspy
 
+// `lsof` executing implementation
+
 import (
 	"fmt"
 	"net"
@@ -15,6 +17,7 @@ var (
 	lsofInterval = 250 * time.Millisecond
 )
 
+// SpyLSOF executes `lsof` to get the connection list.
 func SpyLSOF() ([]ConnProc, error) {
 	out, err := exec.Command(
 		lsofBinary,

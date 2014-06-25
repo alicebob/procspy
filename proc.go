@@ -1,5 +1,6 @@
-// /proc based implementation
 package procspy
+
+// /proc based implementation
 
 import (
 	"bufio"
@@ -16,6 +17,7 @@ import (
 
 const procRoot = "/proc"
 
+// SpyProc uses /proc directly to make the connection list.
 func SpyProc() ([]ConnProc, error) {
 	// A map of inode -> pid
 	inodes, err := walkProcPid()

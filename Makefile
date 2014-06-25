@@ -1,5 +1,11 @@
 .PHONY: all
-all: test
+all: test build
+
+.PHONY: build
+build: 
+	go build
+	go vet
+	golint .
 
 .PHONY: test
 test:
