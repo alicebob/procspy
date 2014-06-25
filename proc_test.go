@@ -1,7 +1,6 @@
 package procspy
 
 import (
-	"fmt"
 	"net"
 	"reflect"
 	"strings"
@@ -100,8 +99,10 @@ func TestWalkproc(t *testing.T) {
 }
 */
 
+/*
 func TestSpy(t *testing.T) {
-	for _, t := range Spy() {
+	for _, t := range SpyProc() {
 		fmt.Printf("A proc: %+v\n", t)
 	}
 }
+*/

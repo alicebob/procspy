@@ -1,3 +1,4 @@
+// /proc based implementation
 package procspy
 
 import (
@@ -15,51 +16,53 @@ import (
 
 const procRoot = "/proc"
 
-func Spy() []ConnProc {
+func SpyProc() ([]ConnProc, error) {
 	// A map of inode -> pid
 	inodes, err := walkProcPid()
 	if err != nil {
-		fmt.Printf("walkProcPid err: %v\n", err)
-		return nil
+		// fmt.Printf("walkProcPid err: %v\n", err)
+		return nil, err
 	}
 
 	res := []ConnProc{}
-
 	for _, procFile := range []string{
 		"/proc/net/tcp",
 		"/proc/net/tcp6",
 	} {
 		fh, err := os.Open(procFile)
-		defer fh.Close()
 		if err != nil {
-			fmt.Printf("Open err: %v\n", err)
+			// fmt.Printf("Open err: %v\n", err)
+			// Might not be there is IPv{4,6} is not supported.
+			continue
 		}
-		if err == nil {
-			for _, tp := range parseTransport(fh) {
-				if pid, ok := inodes[tp.inode]; ok {
-					name, err := procName(pid)
-					if err != nil {
-						fmt.Printf("procName err: %v\n", err)
-						continue
-					}
-					res = append(res, ConnProc{
-						Protocol:  "tcp",
-						LocalAddr: tp.localAddress,
-						LocalPort: tp.localPort,
-						PID:       pid,
-						Name:      name,
-					})
+		defer fh.Close()
+		for _, tp := range parseTransport(fh) {
+			if pid, ok := inodes[tp.inode]; ok {
+				name, err := procName(pid)
+				if err != nil {
+					// Process might be gone by now
+					continue
 				}
+				res = append(res, ConnProc{
+					Protocol:   "tcp",
+					LocalAddr:  tp.localAddress.String(),
+					LocalPort:  tp.localPort,
+					RemoteAddr: tp.remoteAddress.String(),
+					RemotePort: tp.remotePort,
+					PID:        pid,
+					Name:       name,
+				})
 			}
 		}
 	}
-	return res
+	return res, nil
 }
 
 func walkProcPid() (map[uint64]uint, error) {
 	// Walk over all /proc entries (numerical ones, those are PIDs), and see if
 	// their ./fd/* files link to 'socket[...]' 'files'.
 	// Returns a map from socket id to pid
+	// Will return an error if /proc/ isn't there.
 	fh, err := os.Open(procRoot)
 	if err != nil {
 		return nil, err

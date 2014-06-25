@@ -8,7 +8,11 @@ import (
 
 func main() {
 	fmt.Printf("Go Go:\n")
-	for _, p := range procspy.Spy() {
+	procs, err := procspy.Spy()
+	if err != nil {
+		panic(err)
+	}
+	for _, p := range procs {
 		fmt.Printf(" - %v\n", p)
 	}
 }
