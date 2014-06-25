@@ -1,10 +1,11 @@
 package procspy
+
 import (
 	"fmt"
-	"testing"
 	"net"
-	"strings"
 	"reflect"
+	"strings"
+	"testing"
 )
 
 func TestTransport4(t *testing.T) {
@@ -17,35 +18,35 @@ func TestTransport4(t *testing.T) {
 	res := parseTransport4(testString)
 	expected := []transport{
 		transport{
-			localAddress:net.IP{0x0, 0x0, 0x0, 0x0}, localPort:0xa6c0,
-			remoteAddress:net.IP{0x0, 0x0, 0x0, 0x0}, remotePort:0x0,
-			uid:105,
-			inode:5107,
+			localAddress: net.IP{0x0, 0x0, 0x0, 0x0}, localPort: 0xa6c0,
+			remoteAddress: net.IP{0x0, 0x0, 0x0, 0x0}, remotePort: 0x0,
+			uid:   105,
+			inode: 5107,
 		},
 		transport{
-			localAddress:net.IP{0x0, 0x0, 0x0, 0x0}, localPort:0x006f,
-			remoteAddress:net.IP{0x0, 0x0, 0x0, 0x0}, remotePort:0x0,
-			uid:0,
-			inode:5084,
+			localAddress: net.IP{0x0, 0x0, 0x0, 0x0}, localPort: 0x006f,
+			remoteAddress: net.IP{0x0, 0x0, 0x0, 0x0}, remotePort: 0x0,
+			uid:   0,
+			inode: 5084,
 		},
 		transport{
-			localAddress:net.IP{0x7f, 0x0, 0x0, 0x01}, localPort:0x0019,
-			remoteAddress:net.IP{0x0, 0x0, 0x0, 0x0}, remotePort:0x0,
-			uid:0,
-			inode:10550,
+			localAddress: net.IP{0x7f, 0x0, 0x0, 0x01}, localPort: 0x0019,
+			remoteAddress: net.IP{0x0, 0x0, 0x0, 0x0}, remotePort: 0x0,
+			uid:   0,
+			inode: 10550,
 		},
 		transport{
-			localAddress:net.IP{0x2e, 0xf6, 0x2c, 0xa1}, localPort:0xe4d7,
-			remoteAddress:net.IP{0xc0, 0x1e, 0xfc, 0x57}, remotePort:0x01bb,
-			uid:1000,
-			inode:639474,
+			localAddress: net.IP{0x2e, 0xf6, 0x2c, 0xa1}, localPort: 0xe4d7,
+			remoteAddress: net.IP{0xc0, 0x1e, 0xfc, 0x57}, remotePort: 0x01bb,
+			uid:   1000,
+			inode: 639474,
 		},
 	}
 
 	if len(res) != 4 {
 		t.Errorf("Wanted 4")
 	}
-	if ! reflect.DeepEqual(res, expected) {
+	if !reflect.DeepEqual(res, expected) {
 		t.Errorf("transport 4 error. Got\n%+v\nExpected\n%+v\n", res, expected)
 	}
 

@@ -1,6 +1,5 @@
 package procspy
 
-
 import (
 	"net"
 )

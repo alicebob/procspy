@@ -1,19 +1,20 @@
 package procspy
+
 import (
-	"syscall"
-	"errors"
-	"strings"
 	"bufio"
+	"errors"
+	"fmt"
 	"io"
 	"net"
-	"fmt"
-	"regexp"
 	"os"
+	"regexp"
+	"strings"
+	"syscall"
 )
 
 const procRoot = "/proc"
 
-func Spy() ([]ConnProc){
+func Spy() []ConnProc {
 	// A map of inode -> pid
 	inodes, err := walkProcPid()
 	if err != nil {
@@ -34,11 +35,11 @@ func Spy() ([]ConnProc){
 			// fmt.Printf("Tp: %+v\n", tp)
 			if pid, ok := inodes[tp.inode]; ok {
 				res = append(res, ConnProc{
-					Protocol: "tcp",
+					Protocol:  "tcp",
 					LocalAddr: tp.localAddress,
 					LocalPort: tp.localPort,
-					PID: pid,
-					Name: "unknown yet", // <-- todo
+					PID:       pid,
+					Name:      "unknown yet", // <-- todo
 				})
 			}
 		}
@@ -80,7 +81,7 @@ func walkProcPid() (map[uint64]uint, error) {
 			continue
 		}
 		for _, procFd := range fds {
-			if procFd.Mode() & os.ModeSymlink == 0 {
+			if procFd.Mode()&os.ModeSymlink == 0 {
 				continue
 			}
 			// fmt.Printf(" Proc: %v: %v\n", pid, procFd.Name())
@@ -90,33 +91,33 @@ func walkProcPid() (map[uint64]uint, error) {
 			if err != nil {
 				continue
 			}
-			if stat.Mode() & os.ModeSocket == 0 {
+			if stat.Mode()&os.ModeSocket == 0 {
 				continue
 			}
 			// fmt.Printf(" Stat: %v : %v\n", pid, stat.Name())
 			sys, ok := stat.Sys().(*syscall.Stat_t)
-			if ! ok {
+			if !ok {
 				panic("Weird result from stat.Sys()")
-			}	
+			}
 			// fmt.Printf(" Inode: %v : %v\n", pid, sys.Ino)
 			procmap[sys.Ino] = pid
 
-/*
-			linkName, err := os.Readlink(procRoot + "/" + pid + "/fd/" + procFd.Name())
-			if err != nil {
-				fmt.Printf("Readlink err: %v\n", err)
-				continue
-			}
-			fmt.Printf(" Link: %v: %v\n", pid, linkName)
-*/
-/*
-			eval, err := filepath.EvalSymlinks(procRoot + "/" + name + "/fd/" + procFd.Name())
-			if err != nil {
-				fmt.Printf("EvalSymlinks err: %v\n", err)
-				continue
-			}
-			fmt.Printf(" Link: %v: %v\n", name, eval)
-*/
+			/*
+				linkName, err := os.Readlink(procRoot + "/" + pid + "/fd/" + procFd.Name())
+				if err != nil {
+					fmt.Printf("Readlink err: %v\n", err)
+					continue
+				}
+				fmt.Printf(" Link: %v: %v\n", pid, linkName)
+			*/
+			/*
+				eval, err := filepath.EvalSymlinks(procRoot + "/" + name + "/fd/" + procFd.Name())
+				if err != nil {
+					fmt.Printf("EvalSymlinks err: %v\n", err)
+					continue
+				}
+				fmt.Printf(" Link: %v: %v\n", name, eval)
+			*/
 			// fmt.Printf(" Proc: %v: %v\n", name, procFd.Name())
 		}
 		dfh.Close()
@@ -126,15 +127,17 @@ func walkProcPid() (map[uint64]uint, error) {
 
 // transport are found in /proc/net/{tcp,udp}{,6} files
 type transport struct {
-	localAddress net.IP
-	localPort uint16
+	localAddress  net.IP
+	localPort     uint16
 	remoteAddress net.IP
-	remotePort uint16
-	uid int
-	inode uint64
+	remotePort    uint16
+	uid           int
+	inode         uint64
 }
+
 // parseTransport4 parses /proc/net/{tcp,udp} files
 var fieldRe = regexp.MustCompile(`\s+`)
+
 func parseTransport4(r io.Reader) []transport {
 	res := []transport{}
 	scanner := bufio.NewScanner(r)
@@ -179,16 +182,16 @@ func parseTransport4(r io.Reader) []transport {
 			continue
 		}
 		t := transport{
-			localAddress: localAddress,
-			localPort: localPort,
+			localAddress:  localAddress,
+			localPort:     localPort,
 			remoteAddress: remoteAddress,
-			remotePort: remotePort,
-			uid: uid,
-			inode: inode,
+			remotePort:    remotePort,
+			uid:           uid,
+			inode:         inode,
 		}
 		res = append(res, t)
-		
-	}	
+
+	}
 	return res
 }
 
