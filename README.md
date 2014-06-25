@@ -1,15 +1,16 @@
-Go module to list all TCP connections by port->process.
+Go module to list all TCP connections with PID and processname.
 
-Uses /proc directly where available, with a fallback to the `lsof` binary.
+Uses /proc directly where /proc is available, with a fallback to `lsof -i` when
+not.
 
-Works for IPv4 and IPv6
-TCP connections. Only active connections are listed, ports where something is
-listening are skipped.
+Works for IPv4 and IPv6 TCP connections. Only active connections are listed, ports where something is listening are skipped. Connections where the owning process is unknown are also skipped.
+
+If you want all connections you'll need to run this as root.
 
 Status:
 -------
 
-Works on Linux and Darwin (10.9, Mavericks)
+Tested on Linux and Darwin (10.9). Should work everywhere where `lsof` is available.
 
 Install:
 --------
@@ -19,11 +20,11 @@ Install:
 Usage:
 ------
 
-`procspy.Spy()`
+`list, err := procspy.Spy()`
 
 (See ./example/)
 
-If you want you can directly call `procspy.SpyProc()` or `procspy.SpyLSOF()`
+If you want you can call `procspy.SpyProc()` or `procspy.SpyLSOF()` directly.
 
 ``` go
 
@@ -36,11 +37,11 @@ import (
 )
 
 func main() {
-	fmt.Printf("Go Go:\n")
 	procs, err := procspy.Spy()
 	if err != nil {
 		panic(err)
 	}
+	fmt.Printf("Connections:\n")
 	for _, p := range procs {
 		fmt.Printf(" - %v\n", p)
 	}
