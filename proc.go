@@ -45,6 +45,10 @@ func SpyProc() ([]ConnProc, error) {
 					// Process might be gone by now
 					continue
 				}
+				if tp.remoteAddress.IsUnspecified() {
+					// remote address is zero. This is a listen entry.
+					continue
+				}
 				res = append(res, ConnProc{
 					Protocol:   "tcp",
 					LocalAddr:  tp.localAddress.String(),
