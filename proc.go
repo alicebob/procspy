@@ -50,7 +50,7 @@ func SpyProc() ([]ConnProc, error) {
 					continue
 				}
 				res = append(res, ConnProc{
-					Protocol:   "tcp",
+					Transport:  "tcp",
 					LocalAddr:  tp.localAddress.String(),
 					LocalPort:  tp.localPort,
 					RemoteAddr: tp.remoteAddress.String(),

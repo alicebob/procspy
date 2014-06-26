@@ -66,7 +66,7 @@ func parseLSOF(out string) ([]ConnProc, error) {
 		case 'c':
 			cp.Name = value
 		case 'P':
-			cp.Protocol = strings.ToLower(value)
+			cp.Transport = strings.ToLower(value)
 		case 'u':
 			// uid
 		case 'n':

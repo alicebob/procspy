@@ -6,7 +6,7 @@ import (
 
 // ConnProc is a single connection with PID/process name.
 type ConnProc struct {
-	Protocol   string
+	Transport  string
 	LocalAddr  string
 	LocalPort  uint16
 	RemoteAddr string
