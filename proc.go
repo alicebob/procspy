@@ -6,11 +6,11 @@ import (
 	"bufio"
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"io"
 	"net"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"syscall"
 )
@@ -28,8 +28,8 @@ func SpyProc() ([]ConnProc, error) {
 
 	res := []ConnProc{}
 	for _, procFile := range []string{
-		"/proc/net/tcp",
-		"/proc/net/tcp6",
+		procRoot + "/net/tcp",
+		procRoot + "/net/tcp6",
 	} {
 		fh, err := os.Open(procFile)
 		if err != nil {
@@ -80,8 +80,7 @@ func walkProcPid() (map[uint64]uint, error) {
 	}
 	procmap := map[uint64]uint{}
 	for _, dirName := range dirNames {
-		var pid uint
-		_, err = fmt.Sscanf(dirName, "%d", &pid)
+		pid, err := strconv.ParseUint(dirName, 10, 0)
 		if err != nil {
 			// Not a number, so not a PID subdir.
 			continue
@@ -114,7 +113,7 @@ func walkProcPid() (map[uint64]uint, error) {
 			if !ok {
 				panic("Weird result from stat.Sys()")
 			}
-			procmap[sys.Ino] = pid
+			procmap[sys.Ino] = uint(pid)
 		}
 		dfh.Close()
 	}
@@ -162,15 +161,13 @@ func parseTransport(r io.Reader) []transport {
 			continue
 		}
 
-		var uid int
-		_, err = fmt.Sscanf(fields[7], "%d", &uid)
+		uid, err := strconv.Atoi(fields[7])
 		if err != nil {
 			// fmt.Printf("err: %s\n", err)
 			continue
 		}
 
-		var inode uint64
-		_, err = fmt.Sscanf(fields[9], "%d", &inode)
+		inode, err := strconv.ParseUint(fields[9], 10, 64)
 		if err != nil {
 			// fmt.Printf("err: %s\n", err)
 			continue
@@ -210,18 +207,19 @@ func scanAddress(in string) (net.IP, uint16, error) {
 		address[i+1], address[i+2] = address[i+2], address[i+1]
 	}
 
-	var port uint16
-	_, err = fmt.Sscanf(parts[1], "%X", &port)
+	// var port uint16
+	// _, err = fmt.Sscanf(parts[1], "%X", &port)
+	port, err := strconv.ParseUint(parts[1], 16, 16)
 	if err != nil {
 		return nil, 0, err
 	}
 
-	return net.IP(address), port, err
+	return net.IP(address), uint16(port), err
 }
 
 // procName does a pid->name lookup
 func procName(pid uint) (string, error) {
-	fh, err := os.Open(fmt.Sprintf("/proc/%d/comm", pid))
+	fh, err := os.Open(procRoot + "/" + strconv.FormatUint(uint64(pid), 10) + "/comm")
 	if err != nil {
 		return "err1", err
 	}
