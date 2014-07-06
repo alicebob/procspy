@@ -33,8 +33,7 @@ func SpyProc() ([]ConnProc, error) {
 	} {
 		fh, err := os.Open(procFile)
 		if err != nil {
-			// fmt.Printf("Open err: %v\n", err)
-			// Might not be there is IPv{4,6} is not supported.
+			// File might not be there if IPv{4,6} is not supported.
 			continue
 		}
 		defer fh.Close()
@@ -86,23 +85,20 @@ func walkProcPid() (map[uint64]uint, error) {
 			continue
 		}
 
-		dfh, err := os.Open(procRoot + "/" + dirName + "/fd")
+		fdBase := procRoot + "/" + dirName + "/fd/"
+		dfh, err := os.Open(fdBase)
 		if err != nil {
-			// process is be gone by now, or we don't have access.
+			// Process is be gone by now, or we don't have access.
 			continue
 		}
-		fds, err := dfh.Readdir(-1)
+		fdNames, err := dfh.Readdirnames(-1)
+		dfh.Close()
 		if err != nil {
-			dfh.Close()
 			continue
 		}
-		for _, procFd := range fds {
-			if procFd.Mode()&os.ModeSymlink == 0 {
-				continue
-			}
-
+		for _, fdName := range fdNames {
 			// We want sockets only
-			stat, err := os.Stat(procRoot + "/" + dirName + "/fd/" + procFd.Name())
+			stat, err := os.Stat(fdBase + fdName)
 			if err != nil {
 				continue
 			}
@@ -115,7 +111,6 @@ func walkProcPid() (map[uint64]uint, error) {
 			}
 			procmap[sys.Ino] = uint(pid)
 		}
-		dfh.Close()
 	}
 	return procmap, nil
 }
