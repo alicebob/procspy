@@ -22,7 +22,6 @@ func SpyProc() ([]ConnProc, error) {
 	// A map of inode -> pid
 	inodes, err := walkProcPid()
 	if err != nil {
-		// fmt.Printf("walkProcPid err: %v\n", err)
 		return nil, err
 	}
 
@@ -45,7 +44,7 @@ func SpyProc() ([]ConnProc, error) {
 					continue
 				}
 				if tp.remoteAddress.IsUnspecified() {
-					// remote address is zero. This is a listen entry.
+					// Remote address is zero. This is a listen entry.
 					continue
 				}
 				res = append(res, ConnProc{
@@ -133,38 +132,35 @@ func parseTransport(r io.Reader) []transport {
 	scanner := bufio.NewScanner(r)
 	for i := 0; scanner.Scan(); i++ {
 		if i == 0 {
+			// Skip header
 			continue
 		}
 		// Fields are:
 		//  'sl local_address rem_address st tx_queue rx_queue tr tm->when retrnsmt uid timeout inode <more>'
+		// The first field might or might not have leading whitespace.
 		line := strings.TrimSpace(scanner.Text())
 		fields := fieldRe.Split(line, -1)
 		if len(fields) < 10 {
-			// fmt.Printf("Invalid format")
 			continue
 		}
 
 		localAddress, localPort, err := scanAddress(fields[1])
 		if err != nil {
-			// fmt.Printf("err: %s\n", err)
 			continue
 		}
 
 		remoteAddress, remotePort, err := scanAddress(fields[2])
 		if err != nil {
-			// fmt.Printf("err: %s\n", err)
 			continue
 		}
 
 		uid, err := strconv.Atoi(fields[7])
 		if err != nil {
-			// fmt.Printf("err: %s\n", err)
 			continue
 		}
 
 		inode, err := strconv.ParseUint(fields[9], 10, 64)
 		if err != nil {
-			// fmt.Printf("err: %s\n", err)
 			continue
 		}
 		t := transport{
@@ -181,8 +177,8 @@ func parseTransport(r io.Reader) []transport {
 	return res
 }
 
-// scanAddress parses things like 'A12CF62E:E4D7' to their address/port.
-// Deals with IPv4 and IPv6 addresses.
+// scanAddress parses 'A12CF62E:E4D7' to the address and port.
+// Handles IPv4 and IPv6 addresses.
 // The address part are big endian 32 bit ints, hex encoded. Since net.IP is a
 // byte slice we just decode the hex and flip the bytes in every group of 4.
 func scanAddress(in string) (net.IP, uint16, error) {
@@ -191,7 +187,7 @@ func scanAddress(in string) (net.IP, uint16, error) {
 		return nil, 0, errors.New("invalid address:port")
 	}
 
-	// network (big) endian. Can be either ipv4 or ipv6
+	// Network address is big endian. Can be either ipv4 or ipv6.
 	address, err := hex.DecodeString(parts[0])
 	if err != nil {
 		return nil, 0, err
@@ -202,8 +198,7 @@ func scanAddress(in string) (net.IP, uint16, error) {
 		address[i+1], address[i+2] = address[i+2], address[i+1]
 	}
 
-	// var port uint16
-	// _, err = fmt.Sscanf(parts[1], "%X", &port)
+	// Port number
 	port, err := strconv.ParseUint(parts[1], 16, 16)
 	if err != nil {
 		return nil, 0, err
@@ -216,12 +211,12 @@ func scanAddress(in string) (net.IP, uint16, error) {
 func procName(pid uint) (string, error) {
 	fh, err := os.Open(procRoot + "/" + strconv.FormatUint(uint64(pid), 10) + "/comm")
 	if err != nil {
-		return "err1", err
+		return "", err
 	}
 	name := make([]byte, 1024)
 	l, err := fh.Read(name)
 	if err != nil {
-		return "err", err
+		return "", err
 	}
 	if l < 2 {
 		return "", nil
