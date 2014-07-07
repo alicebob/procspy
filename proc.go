@@ -9,7 +9,6 @@ import (
 	"io"
 	"net"
 	"os"
-	"regexp"
 	"strconv"
 	"strings"
 	"syscall"
@@ -125,8 +124,6 @@ type transport struct {
 }
 
 // parseTransport parses /proc/net/{tcp,udp}{,6} files
-var fieldRe = regexp.MustCompile(`\s+`)
-
 func parseTransport(r io.Reader) []transport {
 	res := []transport{}
 	scanner := bufio.NewScanner(r)
@@ -137,9 +134,7 @@ func parseTransport(r io.Reader) []transport {
 		}
 		// Fields are:
 		//  'sl local_address rem_address st tx_queue rx_queue tr tm->when retrnsmt uid timeout inode <more>'
-		// The first field might or might not have leading whitespace.
-		line := strings.TrimSpace(scanner.Text())
-		fields := fieldRe.Split(line, -1)
+		fields := strings.Fields(scanner.Text())
 		if len(fields) < 10 {
 			continue
 		}
