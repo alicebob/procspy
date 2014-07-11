@@ -70,8 +70,8 @@ func walkProcPid() (map[uint64]uint, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer fh.Close()
 	dirNames, err := fh.Readdirnames(-1)
+	fh.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -210,6 +210,7 @@ func procName(pid uint) (string, error) {
 	}
 	name := make([]byte, 1024)
 	l, err := fh.Read(name)
+	fh.Close()
 	if err != nil {
 		return "", err
 	}
