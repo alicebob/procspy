@@ -76,6 +76,7 @@ func walkProcPid() (map[uint64]uint, error) {
 		return nil, err
 	}
 	procmap := map[uint64]uint{}
+	var stat syscall.Stat_t
 	for _, dirName := range dirNames {
 		pid, err := strconv.ParseUint(dirName, 10, 0)
 		if err != nil {
@@ -96,18 +97,15 @@ func walkProcPid() (map[uint64]uint, error) {
 		}
 		for _, fdName := range fdNames {
 			// We want sockets only
-			stat, err := os.Stat(fdBase + fdName)
+			// Direct use of Stat() to save garbage.
+			err = syscall.Stat(fdBase+fdName, &stat)
 			if err != nil {
 				continue
 			}
-			if stat.Mode()&os.ModeSocket == 0 {
+			if stat.Mode&syscall.S_IFMT != syscall.S_IFSOCK {
 				continue
 			}
-			sys, ok := stat.Sys().(*syscall.Stat_t)
-			if !ok {
-				panic("Weird result from stat.Sys()")
-			}
-			procmap[sys.Ino] = uint(pid)
+			procmap[stat.Ino] = uint(pid)
 		}
 	}
 	return procmap, nil
