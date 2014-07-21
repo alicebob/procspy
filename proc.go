@@ -96,12 +96,12 @@ func walkProcPid() (map[uint64]uint, error) {
 			continue
 		}
 		for _, fdName := range fdNames {
-			// We want sockets only
-			// Direct use of Stat() to save garbage.
+			// Direct use of syscall.Stat() to save garbage.
 			err = syscall.Stat(fdBase+fdName, &stat)
 			if err != nil {
 				continue
 			}
+			// We want sockets only
 			if stat.Mode&syscall.S_IFMT != syscall.S_IFSOCK {
 				continue
 			}
@@ -131,7 +131,7 @@ func parseTransport(r io.Reader) []transport {
 			continue
 		}
 		// Fields are:
-		//  'sl local_address rem_address st tx_queue rx_queue tr tm->when retrnsmt uid timeout inode <more>'
+		// 'sl local_address rem_address st tx_queue rx_queue tr tm->when retrnsmt uid timeout inode <more>'
 		fields := strings.Fields(scanner.Text())
 		if len(fields) < 10 {
 			continue
