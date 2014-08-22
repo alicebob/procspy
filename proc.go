@@ -76,6 +76,7 @@ func walkProcPid() (map[uint64]uint, error) {
 		return nil, err
 	}
 	procmap := map[uint64]uint{}
+	var stat syscall.Stat_t
 	for _, dirName := range dirNames {
 		pid, err := strconv.ParseUint(dirName, 10, 0)
 		if err != nil {
@@ -95,19 +96,16 @@ func walkProcPid() (map[uint64]uint, error) {
 			continue
 		}
 		for _, fdName := range fdNames {
-			// We want sockets only
-			stat, err := os.Stat(fdBase + fdName)
+			// Direct use of syscall.Stat() to save garbage.
+			err = syscall.Stat(fdBase+fdName, &stat)
 			if err != nil {
 				continue
 			}
-			if stat.Mode()&os.ModeSocket == 0 {
+			// We want sockets only
+			if stat.Mode&syscall.S_IFMT != syscall.S_IFSOCK {
 				continue
 			}
-			sys, ok := stat.Sys().(*syscall.Stat_t)
-			if !ok {
-				panic("Weird result from stat.Sys()")
-			}
-			procmap[sys.Ino] = uint(pid)
+			procmap[stat.Ino] = uint(pid)
 		}
 	}
 	return procmap, nil
@@ -133,7 +131,7 @@ func parseTransport(r io.Reader) []transport {
 			continue
 		}
 		// Fields are:
-		//  'sl local_address rem_address st tx_queue rx_queue tr tm->when retrnsmt uid timeout inode <more>'
+		// 'sl local_address rem_address st tx_queue rx_queue tr tm->when retrnsmt uid timeout inode <more>'
 		fields := strings.Fields(scanner.Text())
 		if len(fields) < 10 {
 			continue
