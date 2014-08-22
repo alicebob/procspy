@@ -17,7 +17,7 @@ var (
 	lsofInterval = 250 * time.Millisecond
 )
 
-// SpyLSOF executes `lsof` to get the connection list.
+// SpyLSOF executes `lsof -i` to get the connection list.
 func SpyLSOF() ([]ConnProc, error) {
 	out, err := exec.Command(
 		lsofBinary,

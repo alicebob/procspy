@@ -92,17 +92,3 @@ func TestTransport6(t *testing.T) {
 	}
 
 }
-
-/*
-func TestWalkproc(t *testing.T) {
-	walkprocpid()
-}
-*/
-
-/*
-func TestSpy(t *testing.T) {
-	for _, t := range SpyProc() {
-		fmt.Printf("A proc: %+v\n", t)
-	}
-}
-*/

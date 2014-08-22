@@ -1,3 +1,5 @@
+// Package procspy lists all TCP connections with PID and processname.
+// Works on Linux (via /proc) and Darwin (via `lsof -i`).
 package procspy
 
 import (
@@ -16,7 +18,8 @@ type ConnProc struct {
 }
 
 // Spy returns the current []ConnProc list.
-// It will use /proc if that's available, otherwise it'll fallback to `lsof -i`
+// It will use /proc if that's available, otherwise it will fallback to `lsof
+// -i`.
 func Spy() ([]ConnProc, error) {
 	if _, err := os.Stat("/proc"); err == nil {
 		return SpyProc()

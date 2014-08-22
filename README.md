@@ -3,7 +3,7 @@ Go module to list all TCP connections with PID and processname.
 Uses /proc directly where /proc is available, with a fallback to `lsof -i` when
 not.
 
-Works for IPv4 and IPv6 TCP connections. Only active connections are listed, ports where something is listening are skipped. Connections where the owning process is unknown are also skipped.
+Works for IPv4 and IPv6 TCP connections. Only active connections are listed, ports where something is only listening are skipped. Connections where the owning process is unknown are also skipped.
 
 If you want all connections you'll need to run this as root.
 
@@ -22,7 +22,7 @@ Usage:
 
 `list, err := procspy.Spy()`
 
-(See ./example/)
+(See ./example\_test.go)
 
 If you want you can call `procspy.SpyProc()` or `procspy.SpyLSOF()` directly.
 

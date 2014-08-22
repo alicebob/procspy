@@ -1,4 +1,4 @@
-package main
+package procspy_test
 
 import (
 	"fmt"
@@ -6,7 +6,7 @@ import (
 	"github.com/alicebob/procspy"
 )
 
-func main() {
+func Example() {
 	procs, err := procspy.Spy()
 	if err != nil {
 		panic(err)
