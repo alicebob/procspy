@@ -35,23 +35,23 @@ func SpyProc() ([]ConnProc, error) {
 			continue
 		}
 		defer fh.Close()
-		for _, tp := range parseTransport(fh) {
-			if pid, ok := inodes[tp.inode]; ok {
+		for _, tp := range ParseTransport(fh) {
+			if pid, ok := inodes[tp.Inode]; ok {
 				name, err := procName(pid)
 				if err != nil {
 					// Process might be gone by now
 					continue
 				}
-				if tp.remoteAddress.IsUnspecified() {
+				if tp.RemoteAddress.IsUnspecified() {
 					// Remote address is zero. This is a listen entry.
 					continue
 				}
 				res = append(res, ConnProc{
 					Transport:  "tcp",
-					LocalAddr:  tp.localAddress.String(),
-					LocalPort:  tp.localPort,
-					RemoteAddr: tp.remoteAddress.String(),
-					RemotePort: tp.remotePort,
+					LocalAddr:  tp.LocalAddress.String(),
+					LocalPort:  tp.LocalPort,
+					RemoteAddr: tp.RemoteAddress.String(),
+					RemotePort: tp.RemotePort,
 					PID:        pid,
 					Name:       name,
 				})
@@ -113,16 +113,16 @@ func walkProcPid() (map[uint64]uint, error) {
 
 // transport are found in /proc/net/{tcp,udp}{,6} files
 type transport struct {
-	localAddress  net.IP
-	localPort     uint16
-	remoteAddress net.IP
-	remotePort    uint16
-	uid           int
-	inode         uint64
+	LocalAddress  net.IP
+	LocalPort     uint16
+	RemoteAddress net.IP
+	RemotePort    uint16
+	UID           int
+	Inode         uint64
 }
 
-// parseTransport parses /proc/net/{tcp,udp}{,6} files
-func parseTransport(r io.Reader) []transport {
+// ParseTransport parses /proc/net/{tcp,udp}{,6} files
+func ParseTransport(r io.Reader) []transport {
 	res := []transport{}
 	scanner := bufio.NewScanner(r)
 	for i := 0; scanner.Scan(); i++ {
@@ -157,12 +157,12 @@ func parseTransport(r io.Reader) []transport {
 			continue
 		}
 		t := transport{
-			localAddress:  localAddress,
-			localPort:     localPort,
-			remoteAddress: remoteAddress,
-			remotePort:    remotePort,
-			uid:           uid,
-			inode:         inode,
+			LocalAddress:  localAddress,
+			LocalPort:     localPort,
+			RemoteAddress: remoteAddress,
+			RemotePort:    remotePort,
+			UID:           uid,
+			Inode:         inode,
 		}
 		res = append(res, t)
 
