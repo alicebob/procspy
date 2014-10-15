@@ -16,22 +16,24 @@ import (
 
 const procRoot = "/proc"
 
+/*
 // SpyProc uses /proc directly to make the connection list.
 func SpyProc() ([]ConnProc, error) {
 	return Processes(Connections()), nil
 }
+*/
 
 // Processes gives all processes for the given connections. It is used by
 // SpyProc().
-func Processes(conn []Transport) []ConnProc {
+func procProcesses(conn []transport) []ConnectionProc {
 	// A map of inode -> pid
 	inodes, err := walkProcPid()
 	if err != nil {
 		return nil
 	}
 
-	res := []ConnProc{}
-	for _, tp := range Connections() {
+	res := []ConnectionProc{}
+	for _, tp := range conn {
 		if pid, ok := inodes[tp.Inode]; ok {
 			name, err := procName(pid)
 			if err != nil {
@@ -42,25 +44,27 @@ func Processes(conn []Transport) []ConnProc {
 				// Remote address is zero. This is a listen entry.
 				continue
 			}
-			res = append(res, ConnProc{
-				Transport:  "tcp",
-				LocalAddr:  tp.LocalAddress.String(),
-				LocalPort:  tp.LocalPort,
-				RemoteAddr: tp.RemoteAddress.String(),
-				RemotePort: tp.RemotePort,
-				PID:        pid,
-				Name:       name,
+			res = append(res, ConnectionProc{
+				Connection: Connection{
+					Transport:     "tcp",
+					LocalAddress:  tp.LocalAddress.String(),
+					LocalPort:     strconv.Itoa(int(tp.LocalPort)),
+					RemoteAddress: tp.RemoteAddress.String(),
+					RemotePort:    strconv.Itoa(int(tp.RemotePort)),
+				},
+				PID:  pid,
+				Name: name,
 			})
 		}
 	}
 	return res
 }
 
-// Connections gives all TCP IPv{4,6} connections as found in
+// connections gives all TCP IPv{4,6} connections as found in
 // /proc/net/tcp{,6}.
 // It is used by SpyProc().
-func Connections() []Transport {
-	var res []Transport
+func procConnections() []transport {
+	var res []transport
 	for _, procFile := range []string{
 		procRoot + "/net/tcp",
 		procRoot + "/net/tcp6",
@@ -71,7 +75,7 @@ func Connections() []Transport {
 			continue
 		}
 		defer fh.Close()
-		res = append(res, ParseTransport(fh)...)
+		res = append(res, parseTransport(fh)...)
 	}
 	return res
 }
@@ -126,8 +130,8 @@ func walkProcPid() (map[uint64]uint, error) {
 	return procmap, nil
 }
 
-// Transport are found in /proc/net/{tcp,udp}{,6} files
-type Transport struct {
+// transport are found in /proc/net/{tcp,udp}{,6} files
+type transport struct {
 	LocalAddress  net.IP
 	LocalPort     uint16
 	RemoteAddress net.IP
@@ -136,9 +140,9 @@ type Transport struct {
 	Inode         uint64
 }
 
-// ParseTransport parses /proc/net/{tcp,udp}{,6} files
-func ParseTransport(r io.Reader) []Transport {
-	res := []Transport{}
+// parseTransport parses /proc/net/{tcp,udp}{,6} files
+func parseTransport(r io.Reader) []transport {
+	res := []transport{}
 	scanner := bufio.NewScanner(r)
 	for i := 0; scanner.Scan(); i++ {
 		if i == 0 {
@@ -171,7 +175,7 @@ func ParseTransport(r io.Reader) []Transport {
 		if err != nil {
 			continue
 		}
-		t := Transport{
+		t := transport{
 			LocalAddress:  localAddress,
 			LocalPort:     localPort,
 			RemoteAddress: remoteAddress,

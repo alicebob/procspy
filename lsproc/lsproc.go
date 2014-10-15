@@ -1,4 +1,4 @@
-package procspy_test
+package main
 
 import (
 	"fmt"
@@ -6,7 +6,7 @@ import (
 	"github.com/alicebob/procspy"
 )
 
-func Example() {
+func main() {
 	cs, err := procspy.Connections()
 	if err != nil {
 		panic(err)

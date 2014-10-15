@@ -7,22 +7,24 @@ import (
 
 func TestLSOFParsing(t *testing.T) {
 	// List of lsof -> expected entries
-	for in, expected := range map[string][]ConnProc{
+	for in, expected := range map[string][]ConnectionProc{
 		// Single connection
 		"p25196\n" +
 			"ccello-app\n" +
 			"PTCP\n" +
 			"n127.0.0.1:48094->127.0.0.1:4039\n" +
 			"PTCP\n" +
-			"n*:4040\n": []ConnProc{
+			"n*:4040\n": []ConnectionProc{
 			{
-				Transport:  "tcp",
-				LocalAddr:  "127.0.0.1",
-				LocalPort:  uint16(48094),
-				RemoteAddr: "127.0.0.1",
-				RemotePort: uint16(4039),
-				PID:        25196,
-				Name:       "cello-app",
+				Connection: Connection{
+					Transport:     "tcp",
+					LocalAddress:  "127.0.0.1",
+					LocalPort:     "48094",
+					RemoteAddress: "127.0.0.1",
+					RemotePort:    "4039",
+				},
+				PID:  25196,
+				Name: "cello-app",
 			},
 		},
 
@@ -33,7 +35,7 @@ func TestLSOFParsing(t *testing.T) {
 			"PUDP\n" +
 			"n*:38282\n" +
 			"PUDP\n" +
-			"n*:40625\n": []ConnProc{},
+			"n*:40625\n": []ConnectionProc{},
 
 		// A bunch
 		"p13100\n" +
@@ -57,60 +59,72 @@ func TestLSOFParsing(t *testing.T) {
 			"p21356\n" +
 			"cssh\n" +
 			"PTCP\n" +
-			"n192.168.2.111:33963->192.168.2.71:22\n": []ConnProc{
+			"n192.168.2.111:33963->192.168.2.71:22\n": []ConnectionProc{
 			{
-				Transport:  "tcp",
-				LocalAddr:  "::1",
-				LocalPort:  uint16(6600),
-				RemoteAddr: "::1",
-				RemotePort: uint16(50992),
-				PID:        13100,
-				Name:       "mpd",
+				Connection: Connection{
+					Transport:     "tcp",
+					LocalAddress:  "::1",
+					LocalPort:     "6600",
+					RemoteAddress: "::1",
+					RemotePort:    "50992",
+				},
+				PID:  13100,
+				Name: "mpd",
 			},
 			{
-				Transport:  "tcp",
-				LocalAddr:  "2003:45:2b57:8900:1869:2947:f942:aba7",
-				LocalPort:  uint16(55711),
-				RemoteAddr: "2a00:1450:4008:c01::11",
-				RemotePort: uint16(443),
-				PID:        14612,
-				Name:       "chromium",
+				Connection: Connection{
+					Transport:     "tcp",
+					LocalAddress:  "2003:45:2b57:8900:1869:2947:f942:aba7",
+					LocalPort:     "55711",
+					RemoteAddress: "2a00:1450:4008:c01::11",
+					RemotePort:    "443",
+				},
+				PID:  14612,
+				Name: "chromium",
 			},
 			{
-				Transport:  "tcp",
-				LocalAddr:  "192.168.2.111",
-				LocalPort:  uint16(37158),
-				RemoteAddr: "192.0.72.2",
-				RemotePort: uint16(80),
-				PID:        14612,
-				Name:       "chromium",
+				Connection: Connection{
+					Transport:     "tcp",
+					LocalAddress:  "192.168.2.111",
+					LocalPort:     "37158",
+					RemoteAddress: "192.0.72.2",
+					RemotePort:    "80",
+				},
+				PID:  14612,
+				Name: "chromium",
 			},
 			{
-				Transport:  "tcp",
-				LocalAddr:  "192.168.2.111",
-				LocalPort:  uint16(44013),
-				RemoteAddr: "54.229.241.196",
-				RemotePort: uint16(80),
-				PID:        14612,
-				Name:       "chromium",
+				Connection: Connection{
+					Transport:     "tcp",
+					LocalAddress:  "192.168.2.111",
+					LocalPort:     "44013",
+					RemoteAddress: "54.229.241.196",
+					RemotePort:    "80",
+				},
+				PID:  14612,
+				Name: "chromium",
 			},
 			{
-				Transport:  "tcp",
-				LocalAddr:  "192.168.2.111",
-				LocalPort:  uint16(56385),
-				RemoteAddr: "74.201.105.31",
-				RemotePort: uint16(443),
-				PID:        14612,
-				Name:       "chromium",
+				Connection: Connection{
+					Transport:     "tcp",
+					LocalAddress:  "192.168.2.111",
+					LocalPort:     "56385",
+					RemoteAddress: "74.201.105.31",
+					RemotePort:    "443",
+				},
+				PID:  14612,
+				Name: "chromium",
 			},
 			{
-				Transport:  "tcp",
-				LocalAddr:  "192.168.2.111",
-				LocalPort:  uint16(33963),
-				RemoteAddr: "192.168.2.71",
-				RemotePort: uint16(22),
-				PID:        21356,
-				Name:       "ssh",
+				Connection: Connection{
+					Transport:     "tcp",
+					LocalAddress:  "192.168.2.111",
+					LocalPort:     "33963",
+					RemoteAddress: "192.168.2.71",
+					RemotePort:    "22",
+				},
+				PID:  21356,
+				Name: "ssh",
 			},
 		},
 	} {

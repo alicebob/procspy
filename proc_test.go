@@ -14,8 +14,8 @@ func TestTransport4(t *testing.T) {
    2: 0100007F:0019 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 10550 1 ffff8800a729b780 100 0 0 10 0                     
    3: A12CF62E:E4D7 57FC1EC0:01BB 01 00000000:00000000 02:000006FA 00000000  1000        0 639474 2 ffff88007e75a740 48 4 26 10 -1                   
 `)
-	res := ParseTransport(testString)
-	expected := []Transport{
+	res := parseTransport(testString)
+	expected := []transport{
 		{
 			LocalAddress: net.IP{0x0, 0x0, 0x0, 0x0}, LocalPort: 0xa6c0,
 			RemoteAddress: net.IP{0x0, 0x0, 0x0, 0x0}, RemotePort: 0x0,
@@ -58,8 +58,8 @@ func TestTransport6(t *testing.T) {
    8: 4500032000BE692B8AE31EBD919D9D10:D61C 5014002A080805400000000015100000:01BB 01 00000000:00000000 02:00000045 00000000  1000        0 36856710 2 ffff88010b796080 22 4 30 8 7
 `)
 
-	res := ParseTransport(testString)
-	expected := []Transport{
+	res := parseTransport(testString)
+	expected := []transport{
 		{
 			LocalAddress: net.IP(make([]byte, 16)), LocalPort: 0x19c8,
 			RemoteAddress: net.IP(make([]byte, 16)), RemotePort: 0x0,
