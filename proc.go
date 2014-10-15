@@ -18,13 +18,49 @@ const procRoot = "/proc"
 
 // SpyProc uses /proc directly to make the connection list.
 func SpyProc() ([]ConnProc, error) {
+	return Processes(Connections()), nil
+}
+
+// Processes gives all processes for the given connections. It is used by
+// SpyProc().
+func Processes(conn []Transport) []ConnProc {
 	// A map of inode -> pid
 	inodes, err := walkProcPid()
 	if err != nil {
-		return nil, err
+		return nil
 	}
 
 	res := []ConnProc{}
+	for _, tp := range Connections() {
+		if pid, ok := inodes[tp.Inode]; ok {
+			name, err := procName(pid)
+			if err != nil {
+				// Process might be gone by now
+				continue
+			}
+			if tp.RemoteAddress.IsUnspecified() {
+				// Remote address is zero. This is a listen entry.
+				continue
+			}
+			res = append(res, ConnProc{
+				Transport:  "tcp",
+				LocalAddr:  tp.LocalAddress.String(),
+				LocalPort:  tp.LocalPort,
+				RemoteAddr: tp.RemoteAddress.String(),
+				RemotePort: tp.RemotePort,
+				PID:        pid,
+				Name:       name,
+			})
+		}
+	}
+	return res
+}
+
+// Connections gives all TCP IPv{4,6} connections as found in
+// /proc/net/tcp{,6}.
+// It is used by SpyProc().
+func Connections() []Transport {
+	var res []Transport
 	for _, procFile := range []string{
 		procRoot + "/net/tcp",
 		procRoot + "/net/tcp6",
@@ -35,30 +71,9 @@ func SpyProc() ([]ConnProc, error) {
 			continue
 		}
 		defer fh.Close()
-		for _, tp := range ParseTransport(fh) {
-			if pid, ok := inodes[tp.Inode]; ok {
-				name, err := procName(pid)
-				if err != nil {
-					// Process might be gone by now
-					continue
-				}
-				if tp.RemoteAddress.IsUnspecified() {
-					// Remote address is zero. This is a listen entry.
-					continue
-				}
-				res = append(res, ConnProc{
-					Transport:  "tcp",
-					LocalAddr:  tp.LocalAddress.String(),
-					LocalPort:  tp.LocalPort,
-					RemoteAddr: tp.RemoteAddress.String(),
-					RemotePort: tp.RemotePort,
-					PID:        pid,
-					Name:       name,
-				})
-			}
-		}
+		res = append(res, ParseTransport(fh)...)
 	}
-	return res, nil
+	return res
 }
 
 func walkProcPid() (map[uint64]uint, error) {
@@ -111,8 +126,8 @@ func walkProcPid() (map[uint64]uint, error) {
 	return procmap, nil
 }
 
-// transport are found in /proc/net/{tcp,udp}{,6} files
-type transport struct {
+// Transport are found in /proc/net/{tcp,udp}{,6} files
+type Transport struct {
 	LocalAddress  net.IP
 	LocalPort     uint16
 	RemoteAddress net.IP
@@ -122,8 +137,8 @@ type transport struct {
 }
 
 // ParseTransport parses /proc/net/{tcp,udp}{,6} files
-func ParseTransport(r io.Reader) []transport {
-	res := []transport{}
+func ParseTransport(r io.Reader) []Transport {
+	res := []Transport{}
 	scanner := bufio.NewScanner(r)
 	for i := 0; scanner.Scan(); i++ {
 		if i == 0 {
@@ -156,7 +171,7 @@ func ParseTransport(r io.Reader) []transport {
 		if err != nil {
 			continue
 		}
-		t := transport{
+		t := Transport{
 			LocalAddress:  localAddress,
 			LocalPort:     localPort,
 			RemoteAddress: remoteAddress,

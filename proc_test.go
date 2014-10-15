@@ -15,26 +15,26 @@ func TestTransport4(t *testing.T) {
    3: A12CF62E:E4D7 57FC1EC0:01BB 01 00000000:00000000 02:000006FA 00000000  1000        0 639474 2 ffff88007e75a740 48 4 26 10 -1                   
 `)
 	res := ParseTransport(testString)
-	expected := []transport{
-		transport{
+	expected := []Transport{
+		{
 			LocalAddress: net.IP{0x0, 0x0, 0x0, 0x0}, LocalPort: 0xa6c0,
 			RemoteAddress: net.IP{0x0, 0x0, 0x0, 0x0}, RemotePort: 0x0,
 			UID:   105,
 			Inode: 5107,
 		},
-		transport{
+		{
 			LocalAddress: net.IP{0x0, 0x0, 0x0, 0x0}, LocalPort: 0x006f,
 			RemoteAddress: net.IP{0x0, 0x0, 0x0, 0x0}, RemotePort: 0x0,
 			UID:   0,
 			Inode: 5084,
 		},
-		transport{
+		{
 			LocalAddress: net.IP{0x7f, 0x0, 0x0, 0x01}, LocalPort: 0x0019,
 			RemoteAddress: net.IP{0x0, 0x0, 0x0, 0x0}, RemotePort: 0x0,
 			UID:   0,
 			Inode: 10550,
 		},
-		transport{
+		{
 			LocalAddress: net.IP{0x2e, 0xf6, 0x2c, 0xa1}, LocalPort: 0xe4d7,
 			RemoteAddress: net.IP{0xc0, 0x1e, 0xfc, 0x57}, RemotePort: 0x01bb,
 			UID:   1000,
@@ -59,14 +59,14 @@ func TestTransport6(t *testing.T) {
 `)
 
 	res := ParseTransport(testString)
-	expected := []transport{
-		transport{
+	expected := []Transport{
+		{
 			LocalAddress: net.IP(make([]byte, 16)), LocalPort: 0x19c8,
 			RemoteAddress: net.IP(make([]byte, 16)), RemotePort: 0x0,
 			UID:   0,
 			Inode: 23661201,
 		},
-		transport{
+		{
 			LocalAddress: net.IP{
 				0x20, 0x03, 0, 0x45,
 				0x2b, 0x69, 0xbe, 0x00,
