@@ -27,7 +27,7 @@ func Connections() ([]Connection, error) {
 }
 
 // Processes returns the list of connections with processes.
-// You need to be root to run this.
+// You need to be root to find all processes.
 func Processes() ([]ConnectionProc, error) {
 	out, err := exec.Command(
 		lsofBinary,

@@ -36,7 +36,7 @@ func Connections() ([]Connection, error) {
 // Processes returns the list of Connections, and tries to find the process
 // which handles the connection.
 // Only connections for which we found a process are returned.
-// You need to be root to run this.
+// You need to be root to find all processes.
 func Processes() ([]ConnectionProc, error) {
 	return procProcesses(procConnections()), nil
 }
