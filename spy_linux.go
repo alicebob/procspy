@@ -4,15 +4,23 @@ import (
 	"strconv"
 )
 
-// Connections returns all (TCP) connections.
+const (
+	tcpEstablished = 1 // according to /include/net/tcp_states.h
+)
+
+// Connections returns all established (TCP) connections.
 // No need to be root to run this.
 func Connections() ([]Connection, error) {
 	var c []Connection
 	for _, pc := range procConnections() {
-		// Skip zero addresses. They are listening sockets.
-		if pc.LocalAddress.IsUnspecified() || pc.RemoteAddress.IsUnspecified() {
+
+		if pc.State != tcpEstablished {
 			continue
 		}
+		// // Skip zero addresses. They are listening sockets.
+		// if pc.LocalAddress.IsUnspecified() || pc.RemoteAddress.IsUnspecified() {
+		// continue
+		// }
 
 		c = append(c, Connection{
 			Transport:     "tcp",

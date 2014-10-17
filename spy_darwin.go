@@ -9,7 +9,7 @@ const (
 	lsofBinary    = "lsof"
 )
 
-// Connections returns all (TCP) connections.
+// Connections returns all established (TCP) connections.
 // No need to be root to run this.
 func Connections() ([]Connection, error) {
 	out, err := exec.Command(

@@ -14,14 +14,9 @@ import (
 	"syscall"
 )
 
-const procRoot = "/proc"
-
-/*
-// SpyProc uses /proc directly to make the connection list.
-func SpyProc() ([]ConnProc, error) {
-	return Processes(Connections()), nil
-}
-*/
+const (
+	procRoot = "/proc"
+)
 
 // Processes gives all processes for the given connections. It is used by
 // SpyProc().
@@ -74,8 +69,8 @@ func procConnections() []transport {
 			// File might not be there if IPv{4,6} is not supported.
 			continue
 		}
-		defer fh.Close()
 		res = append(res, parseTransport(fh)...)
+		fh.Close()
 	}
 	return res
 }
@@ -132,6 +127,7 @@ func walkProcPid() (map[uint64]uint, error) {
 
 // transport are found in /proc/net/{tcp,udp}{,6} files
 type transport struct {
+	State         int
 	LocalAddress  net.IP
 	LocalPort     uint16
 	RemoteAddress net.IP
@@ -166,6 +162,11 @@ func parseTransport(r io.Reader) []transport {
 			continue
 		}
 
+		state, err := strconv.ParseInt(fields[3], 16, 32)
+		if err != nil {
+			continue
+		}
+
 		uid, err := strconv.Atoi(fields[7])
 		if err != nil {
 			continue
@@ -176,6 +177,7 @@ func parseTransport(r io.Reader) []transport {
 			continue
 		}
 		t := transport{
+			State:         int(state),
 			LocalAddress:  localAddress,
 			LocalPort:     localPort,
 			RemoteAddress: remoteAddress,
