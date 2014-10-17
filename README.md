@@ -1,9 +1,8 @@
-Go module to list all TCP connections with PID and processname.
+Go module to list all TCP connections, and to list all connections with the owning PID and processname.
 
-Works by reading /proc on Linux, and by executing `netstat` and `lsof` on Darwin.
-not.
+Works by reading /proc directly on Linux, and by executing `netstat` and `lsof -i` on Darwin.
 
-Works for IPv4 and IPv6 TCP connections. Only active connections are listed, ports where something is only listening are skipped. Connections where the owning process is unknown are also skipped.
+Works for IPv4 and IPv6 TCP connections. Only active connections are listed; ports where something is only listening or TIME_WAITs are skipped. Connections where the owning process is unknown are also skipped.
 
 If you want all processes you'll need to run this as root.
 
