@@ -143,7 +143,7 @@ func parseTransport(s string) []transport {
 		}
 		// Fields are:
 		// 'sl local_address rem_address st tx_queue rx_queue tr tm->when retrnsmt uid timeout inode <more>'
-		fields := strings.FieldsFunc(line, func(r rune) bool { return r == ' ' })
+		fields := procNetFields(line)
 		if len(fields) < 10 {
 			continue
 		}
@@ -233,4 +233,29 @@ func procName(pid uint) (string, error) {
 	}
 	// drop trailing "\n"
 	return string(name[:l-1]), nil
+}
+
+// Copy of the standard stings.FieldsFunc(), but just for our tcp lines.
+func procNetFields(s string) []string {
+	// We know there are 18 fields.
+	n := 24 // buffer if the file changes.
+
+	a := make([]string, n)
+	na := 0
+	fieldStart := -1 // Set to -1 when looking for start of field.
+	for i := 0; i < len(s); i++ {
+		if s[i] == ' ' {
+			if fieldStart >= 0 {
+				a[na] = s[fieldStart:i]
+				na++
+				fieldStart = -1
+			}
+		} else if fieldStart == -1 {
+			fieldStart = i
+		}
+	}
+	if fieldStart >= 0 { // Last field might end at EOF.
+		a[na] = s[fieldStart:]
+	}
+	return a
 }
