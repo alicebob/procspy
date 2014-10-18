@@ -3,10 +3,9 @@ package procspy
 // /proc based implementation
 
 import (
-	"bufio"
 	"encoding/hex"
 	"errors"
-	"io"
+	"io/ioutil"
 	"net"
 	"os"
 	"strconv"
@@ -56,21 +55,19 @@ func procProcesses(conn []transport) []ConnectionProc {
 }
 
 // connections gives all TCP IPv{4,6} connections as found in
-// /proc/net/tcp{,6}.
-// It is used by SpyProc().
+// /proc/net/tcp{,6}.  It is used by the linux version of Processes().
 func procConnections() []transport {
 	var res []transport
 	for _, procFile := range []string{
 		procRoot + "/net/tcp",
 		procRoot + "/net/tcp6",
 	} {
-		fh, err := os.Open(procFile)
+		c, err := ioutil.ReadFile(procFile)
 		if err != nil {
 			// File might not be there if IPv{4,6} is not supported.
 			continue
 		}
-		res = append(res, parseTransport(fh)...)
-		fh.Close()
+		res = append(res, parseTransport(string(c))...)
 	}
 	return res
 }
@@ -137,17 +134,16 @@ type transport struct {
 }
 
 // parseTransport parses /proc/net/{tcp,udp}{,6} files
-func parseTransport(r io.Reader) []transport {
+func parseTransport(s string) []transport {
 	res := make([]transport, 0, 10)
-	scanner := bufio.NewScanner(r)
-	for i := 0; scanner.Scan(); i++ {
+	for i, line := range strings.Split(s, "\n") {
 		if i == 0 {
 			// Skip header
 			continue
 		}
 		// Fields are:
 		// 'sl local_address rem_address st tx_queue rx_queue tr tm->when retrnsmt uid timeout inode <more>'
-		fields := strings.Fields(scanner.Text())
+		fields := strings.FieldsFunc(line, func(r rune) bool { return r == ' ' })
 		if len(fields) < 10 {
 			continue
 		}
