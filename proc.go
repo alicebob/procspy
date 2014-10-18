@@ -3,9 +3,8 @@ package procspy
 // /proc based implementation
 
 import (
+	"bytes"
 	"encoding/hex"
-	"errors"
-	"io/ioutil"
 	"net"
 	"os"
 	"strconv"
@@ -62,12 +61,12 @@ func procConnections() []transport {
 		procRoot + "/net/tcp",
 		procRoot + "/net/tcp6",
 	} {
-		c, err := ioutil.ReadFile(procFile)
+		buf, err := readFile(procFile)
 		if err != nil {
 			// File might not be there if IPv{4,6} is not supported.
 			continue
 		}
-		res = append(res, parseTransport(string(c))...)
+		res = append(res, parseTransport(buf.String())...)
 	}
 	return res
 }
@@ -141,43 +140,54 @@ func parseTransport(s string) []transport {
 			// Skip header
 			continue
 		}
-		// Fields are:
-		// 'sl local_address rem_address st tx_queue rx_queue tr tm->when retrnsmt uid timeout inode <more>'
+		// Fields are split on ' ' and ':'(!):
+		// '  sl local_address rem_address st tx_queue rx_queue tr tm->when retrnsmt uid timeout inode <more>'
+		// '  0: 00000000:0FC9 00000000:0000 0A 00000000:00000000 00:00000000 00000000  1000        0 11276449 1 ffff8801029607c0 100 0 0 10 0'
 		fields := procNetFields(line)
 		if len(fields) < 10 {
 			continue
 		}
 
-		localAddress, localPort, err := scanAddress(fields[1])
+		localAddress, err := scanAddress(fields[1])
 		if err != nil {
 			continue
 		}
 
-		remoteAddress, remotePort, err := scanAddress(fields[2])
+		localPort, err := strconv.ParseUint(fields[2], 16, 16)
 		if err != nil {
 			continue
 		}
 
-		state, err := strconv.ParseInt(fields[3], 16, 32)
+		remoteAddress, err := scanAddress(fields[3])
 		if err != nil {
 			continue
 		}
 
-		uid, err := strconv.Atoi(fields[7])
+		remotePort, err := strconv.ParseUint(fields[4], 16, 16)
 		if err != nil {
 			continue
 		}
 
-		inode, err := strconv.ParseUint(fields[9], 10, 64)
+		state, err := strconv.ParseUint(fields[5], 16, 32)
+		if err != nil {
+			continue
+		}
+
+		uid, err := strconv.Atoi(fields[11])
+		if err != nil {
+			continue
+		}
+
+		inode, err := strconv.ParseUint(fields[13], 10, 64)
 		if err != nil {
 			continue
 		}
 		res = append(res, transport{
 			state:         int(state),
 			localAddress:  localAddress,
-			localPort:     localPort,
+			localPort:     uint16(localPort),
 			remoteAddress: remoteAddress,
-			remotePort:    remotePort,
+			remotePort:    uint16(remotePort),
 			uid:           uid,
 			inode:         inode,
 		})
@@ -186,34 +196,25 @@ func parseTransport(s string) []transport {
 	return res
 }
 
-// scanAddress parses 'A12CF62E:E4D7' to the address and port.
+// scanAddress parses 'A12CF62E' to the address.
 // Handles IPv4 and IPv6 addresses.
-// The address part are big endian 32 bit ints, hex encoded. Since net.IP is a
+// The address is a big endian 32 bit ints, hex encoded. Since net.IP is a
 // byte slice we just decode the hex and flip the bytes in every group of 4.
-func scanAddress(in string) (net.IP, uint16, error) {
-	parts := strings.Split(in, ":")
-	if len(parts) != 2 {
-		return nil, 0, errors.New("invalid address:port")
-	}
-
+func scanAddress(in string) (net.IP, error) {
 	// Network address is big endian. Can be either ipv4 or ipv6.
-	address, err := hex.DecodeString(parts[0])
+	address := make([]byte, 16)
+	n, err := hex.Decode(address, []byte(in))
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
+	address = address[:n]
 	// reverse every 4 byte-sequence.
 	for i := 0; i < len(address); i += 4 {
 		address[i], address[i+3] = address[i+3], address[i]
 		address[i+1], address[i+2] = address[i+2], address[i+1]
 	}
 
-	// Port number
-	port, err := strconv.ParseUint(parts[1], 16, 16)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	return net.IP(address), uint16(port), err
+	return net.IP(address), err
 }
 
 // procName does a pid->name lookup
@@ -236,15 +237,16 @@ func procName(pid uint) (string, error) {
 }
 
 // Copy of the standard stings.FieldsFunc(), but just for our tcp lines.
+// We split on ' ' and ':'
 func procNetFields(s string) []string {
-	// We know there are 18 fields.
-	n := 24 // buffer if the file changes.
+	// We know there are 18 fields, and we don't care about the last few.
+	n := 18
 
 	a := make([]string, n)
 	na := 0
 	fieldStart := -1 // Set to -1 when looking for start of field.
-	for i := 0; i < len(s); i++ {
-		if s[i] == ' ' {
+	for i := 0; i < len(s) && na < n; i++ {
+		if s[i] == ' ' || s[i] == ':' {
 			if fieldStart >= 0 {
 				a[na] = s[fieldStart:i]
 				na++
@@ -258,4 +260,16 @@ func procNetFields(s string) []string {
 		a[na] = s[fieldStart:]
 	}
 	return a
+}
+
+// readFile read a /proc file info a buffer.
+func readFile(filename string) (*bytes.Buffer, error) {
+	f, err := os.Open(filename)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	buf := bytes.NewBuffer(make([]byte, 0, 5000))
+	_, err = buf.ReadFrom(f)
+	return buf, err
 }
