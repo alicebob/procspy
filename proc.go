@@ -18,8 +18,8 @@ const (
 	procRoot = "/proc"
 )
 
-// Processes gives all processes for the given connections. It is used by
-// SpyProc().
+// procProcesses gives all processes for the given connections. It is used by
+// the linux version of Processes().
 func procProcesses(conn []transport) []ConnectionProc {
 	// A map of inode -> pid
 	inodes, err := walkProcPid()
@@ -29,23 +29,23 @@ func procProcesses(conn []transport) []ConnectionProc {
 
 	res := []ConnectionProc{}
 	for _, tp := range conn {
-		if pid, ok := inodes[tp.Inode]; ok {
+		if pid, ok := inodes[tp.inode]; ok {
 			name, err := procName(pid)
 			if err != nil {
 				// Process might be gone by now
 				continue
 			}
-			if tp.RemoteAddress.IsUnspecified() {
+			if tp.remoteAddress.IsUnspecified() {
 				// Remote address is zero. This is a listen entry.
 				continue
 			}
 			res = append(res, ConnectionProc{
 				Connection: Connection{
 					Transport:     "tcp",
-					LocalAddress:  tp.LocalAddress.String(),
-					LocalPort:     strconv.Itoa(int(tp.LocalPort)),
-					RemoteAddress: tp.RemoteAddress.String(),
-					RemotePort:    strconv.Itoa(int(tp.RemotePort)),
+					LocalAddress:  tp.localAddress.String(),
+					LocalPort:     strconv.Itoa(int(tp.localPort)),
+					RemoteAddress: tp.remoteAddress.String(),
+					RemotePort:    strconv.Itoa(int(tp.remotePort)),
 				},
 				PID:  pid,
 				Name: name,
@@ -127,18 +127,18 @@ func walkProcPid() (map[uint64]uint, error) {
 
 // transport are found in /proc/net/{tcp,udp}{,6} files
 type transport struct {
-	State         int
-	LocalAddress  net.IP
-	LocalPort     uint16
-	RemoteAddress net.IP
-	RemotePort    uint16
-	UID           int
-	Inode         uint64
+	state         int
+	localAddress  net.IP
+	localPort     uint16
+	remoteAddress net.IP
+	remotePort    uint16
+	uid           int
+	inode         uint64
 }
 
 // parseTransport parses /proc/net/{tcp,udp}{,6} files
 func parseTransport(r io.Reader) []transport {
-	res := []transport{}
+	res := make([]transport, 0, 10)
 	scanner := bufio.NewScanner(r)
 	for i := 0; scanner.Scan(); i++ {
 		if i == 0 {
@@ -176,16 +176,15 @@ func parseTransport(r io.Reader) []transport {
 		if err != nil {
 			continue
 		}
-		t := transport{
-			State:         int(state),
-			LocalAddress:  localAddress,
-			LocalPort:     localPort,
-			RemoteAddress: remoteAddress,
-			RemotePort:    remotePort,
-			UID:           uid,
-			Inode:         inode,
-		}
-		res = append(res, t)
+		res = append(res, transport{
+			state:         int(state),
+			localAddress:  localAddress,
+			localPort:     localPort,
+			remoteAddress: remoteAddress,
+			remotePort:    remotePort,
+			uid:           uid,
+			inode:         inode,
+		})
 
 	}
 	return res

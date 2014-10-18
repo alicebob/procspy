@@ -14,20 +14,16 @@ func Connections() ([]Connection, error) {
 	var c []Connection
 	for _, pc := range procConnections() {
 
-		if pc.State != tcpEstablished {
+		if pc.state != tcpEstablished {
 			continue
 		}
-		// // Skip zero addresses. They are listening sockets.
-		// if pc.LocalAddress.IsUnspecified() || pc.RemoteAddress.IsUnspecified() {
-		// continue
-		// }
 
 		c = append(c, Connection{
 			Transport:     "tcp",
-			LocalAddress:  pc.LocalAddress.String(),
-			LocalPort:     strconv.Itoa(int(pc.LocalPort)),
-			RemoteAddress: pc.RemoteAddress.String(),
-			RemotePort:    strconv.Itoa(int(pc.RemotePort)),
+			LocalAddress:  pc.localAddress.String(),
+			LocalPort:     strconv.Itoa(int(pc.localPort)),
+			RemoteAddress: pc.remoteAddress.String(),
+			RemotePort:    strconv.Itoa(int(pc.remotePort)),
 		})
 	}
 	return c, nil
