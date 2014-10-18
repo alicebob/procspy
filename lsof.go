@@ -64,23 +64,23 @@ func parseLSOF(out string) ([]ConnectionProc, error) {
 			if err != nil {
 				return nil, fmt.Errorf("invalid local address field: %v", err)
 			}
-			cp.LocalAddress = localAddr
-			cp.LocalPort = localPort
-			// _, err = fmt.Sscanf(localPort, "%d", &cp.LocalPort)
-			// if err != nil {
-			// return nil, fmt.Errorf("invalid local port number: %v", localPort)
-			// }
+			cp.LocalAddress = net.ParseIP(localAddr)
+			p, err := strconv.Atoi(localPort)
+			if err != nil {
+				return nil, err
+			}
+			cp.LocalPort = uint16(p)
 
 			remoteAddr, remotePort, err := net.SplitHostPort(addresses[1])
 			if err != nil {
 				return nil, fmt.Errorf("invalid remote address field: %v", err)
 			}
-			cp.RemoteAddress = remoteAddr
-			cp.RemotePort = remotePort
-			// _, err = fmt.Sscanf(remotePort, "%d", &cp.RemotePort)
-			// if err != nil {
-			// return nil, fmt.Errorf("invalid remote port number: %v", remotePort)
-			// }
+			cp.RemoteAddress = net.ParseIP(remoteAddr)
+			p, err = strconv.Atoi(remotePort)
+			if err != nil {
+				return nil, err
+			}
+			cp.RemotePort = uint16(p)
 
 			if cp.PID != 0 {
 				res = append(res, cp)

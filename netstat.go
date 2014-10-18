@@ -3,6 +3,8 @@ package procspy
 // netstat reading
 
 import (
+	"net"
+	"strconv"
 	"strings"
 )
 
@@ -33,28 +35,37 @@ func parseDarwinNetstat(out string) []Connection {
 			continue
 		}
 
+		t := Connection{
+			Transport: "tcp",
+		}
+
 		// Format is <ip>.<port>
 		locals := strings.Split(fields[3], ".")
 		if len(locals) < 2 {
 			continue
 		}
 		localAddress := strings.Join(locals[:len(locals)-1], ".")
+		t.LocalAddress = net.ParseIP(localAddress)
 		localPort := locals[len(locals)-1]
+		p, err := strconv.Atoi(localPort)
+		if err != nil {
+			return nil
+		}
+		t.LocalPort = uint16(p)
 
 		remotes := strings.Split(fields[4], ".")
 		if len(remotes) < 2 {
 			continue
 		}
 		remoteAddress := strings.Join(remotes[:len(remotes)-1], ".")
+		t.RemoteAddress = net.ParseIP(remoteAddress)
 		remotePort := remotes[len(remotes)-1]
-
-		t := Connection{
-			Transport:     "tcp",
-			LocalAddress:  localAddress,
-			LocalPort:     localPort,
-			RemoteAddress: remoteAddress,
-			RemotePort:    remotePort,
+		p, err = strconv.Atoi(remotePort)
+		if err != nil {
+			return nil
 		}
+		t.RemotePort = uint16(p)
+
 		res = append(res, t)
 
 	}

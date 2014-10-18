@@ -1,6 +1,7 @@
 package procspy
 
 import (
+	"net"
 	"reflect"
 	"testing"
 )
@@ -17,24 +18,24 @@ tcp4       0      0  10.0.1.6.1         	4.0.4.0.443    			GONE
 	expected := []Connection{
 		{
 			Transport:     "tcp",
-			LocalAddress:  "10.0.1.6",
-			LocalPort:     "58287",
-			RemoteAddress: "1.2.3.4",
-			RemotePort:    "443",
+			LocalAddress:  net.ParseIP("10.0.1.6"),
+			LocalPort:     58287,
+			RemoteAddress: net.ParseIP("1.2.3.4"),
+			RemotePort:    443,
 		},
 		{
 			Transport:     "tcp",
-			LocalAddress:  "10.0.1.6",
-			LocalPort:     "58279",
-			RemoteAddress: "2.3.4.5",
-			RemotePort:    "80",
+			LocalAddress:  net.ParseIP("10.0.1.6"),
+			LocalPort:     58279,
+			RemoteAddress: net.ParseIP("2.3.4.5"),
+			RemotePort:    80,
 		},
 		{
 			Transport:     "tcp",
-			LocalAddress:  "10.0.1.6",
-			LocalPort:     "58276",
-			RemoteAddress: "44.55.66.77",
-			RemotePort:    "443",
+			LocalAddress:  net.ParseIP("10.0.1.6"),
+			LocalPort:     58276,
+			RemoteAddress: net.ParseIP("44.55.66.77"),
+			RemotePort:    443,
 		},
 		/*
 			{

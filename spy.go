@@ -4,13 +4,17 @@
 // You'll need root to use Processes().
 package procspy
 
+import (
+	"net"
+)
+
 // Connection is a (TCP) connection.
 type Connection struct {
 	Transport     string
-	LocalAddress  string
-	LocalPort     string
-	RemoteAddress string
-	RemotePort    string
+	LocalAddress  net.IP
+	LocalPort     uint16
+	RemoteAddress net.IP
+	RemotePort    uint16
 }
 
 // ConnectionProc is a single connection with PID/process name.

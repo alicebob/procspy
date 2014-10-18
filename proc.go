@@ -9,6 +9,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 )
 
@@ -40,10 +41,10 @@ func procProcesses(conn []transport) []ConnectionProc {
 			res = append(res, ConnectionProc{
 				Connection: Connection{
 					Transport:     "tcp",
-					LocalAddress:  tp.localAddress.String(),
-					LocalPort:     strconv.Itoa(int(tp.localPort)),
-					RemoteAddress: tp.remoteAddress.String(),
-					RemotePort:    strconv.Itoa(int(tp.remotePort)),
+					LocalAddress:  tp.localAddress,
+					LocalPort:     tp.localPort,
+					RemoteAddress: tp.remoteAddress,
+					RemotePort:    tp.remotePort,
 				},
 				PID:  pid,
 				Name: name,
@@ -67,6 +68,7 @@ func procConnections() []transport {
 			continue
 		}
 		res = append(res, parseTransport(buf.String())...)
+		bufPool.Put(buf)
 	}
 	return res
 }
@@ -135,15 +137,21 @@ type transport struct {
 // parseTransport parses /proc/net/{tcp,udp}{,6} files
 func parseTransport(s string) []transport {
 	res := make([]transport, 0, 10)
+
+	// We know there are 18 fields, and we don't care about the last few.
+	fields := make([]string, 18)
 	for i, line := range strings.Split(s, "\n") {
 		if i == 0 {
 			// Skip header
 			continue
 		}
+		if len(line) == 0 {
+			break
+		}
 		// Fields are split on ' ' and ':'(!):
 		// '  sl local_address rem_address st tx_queue rx_queue tr tm->when retrnsmt uid timeout inode <more>'
 		// '  0: 00000000:0FC9 00000000:0000 0A 00000000:00000000 00:00000000 00000000  1000        0 11276449 1 ffff8801029607c0 100 0 0 10 0'
-		fields := procNetFields(line)
+		procNetFields(line, &fields)
 		if len(fields) < 10 {
 			continue
 		}
@@ -238,17 +246,13 @@ func procName(pid uint) (string, error) {
 
 // Copy of the standard stings.FieldsFunc(), but just for our tcp lines.
 // We split on ' ' and ':'
-func procNetFields(s string) []string {
-	// We know there are 18 fields, and we don't care about the last few.
-	n := 18
-
-	a := make([]string, n)
+func procNetFields(s string, a *[]string) {
 	na := 0
 	fieldStart := -1 // Set to -1 when looking for start of field.
-	for i := 0; i < len(s) && na < n; i++ {
+	for i := 0; i < len(s) && na < len(*a); i++ {
 		if s[i] == ' ' || s[i] == ':' {
 			if fieldStart >= 0 {
-				a[na] = s[fieldStart:i]
+				(*a)[na] = s[fieldStart:i]
 				na++
 				fieldStart = -1
 			}
@@ -257,9 +261,14 @@ func procNetFields(s string) []string {
 		}
 	}
 	if fieldStart >= 0 { // Last field might end at EOF.
-		a[na] = s[fieldStart:]
+		(*a)[na] = s[fieldStart:]
 	}
-	return a
+}
+
+var bufPool = sync.Pool{
+	New: func() interface{} {
+		return bytes.NewBuffer(make([]byte, 0, 5000))
+	},
 }
 
 // readFile read a /proc file info a buffer.
@@ -269,7 +278,9 @@ func readFile(filename string) (*bytes.Buffer, error) {
 		return nil, err
 	}
 	defer f.Close()
-	buf := bytes.NewBuffer(make([]byte, 0, 5000))
+	buf := bufPool.Get().(*bytes.Buffer)
+	buf.Reset()
+	// buf := bytes.NewBuffer(make([]byte, 0, 5000))
 	_, err = buf.ReadFrom(f)
 	return buf, err
 }

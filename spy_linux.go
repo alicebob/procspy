@@ -1,9 +1,5 @@
 package procspy
 
-import (
-	"strconv"
-)
-
 const (
 	tcpEstablished = 1 // according to /include/net/tcp_states.h
 )
@@ -20,10 +16,10 @@ func Connections() ([]Connection, error) {
 
 		c = append(c, Connection{
 			Transport:     "tcp",
-			LocalAddress:  pc.localAddress.String(),
-			LocalPort:     strconv.Itoa(int(pc.localPort)),
-			RemoteAddress: pc.remoteAddress.String(),
-			RemotePort:    strconv.Itoa(int(pc.remotePort)),
+			LocalAddress:  pc.localAddress,
+			LocalPort:     pc.localPort,
+			RemoteAddress: pc.remoteAddress,
+			RemotePort:    pc.remotePort,
 		})
 	}
 	return c, nil

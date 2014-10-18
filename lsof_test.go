@@ -1,6 +1,7 @@
 package procspy
 
 import (
+	"net"
 	"reflect"
 	"testing"
 )
@@ -18,10 +19,10 @@ func TestLSOFParsing(t *testing.T) {
 			{
 				Connection: Connection{
 					Transport:     "tcp",
-					LocalAddress:  "127.0.0.1",
-					LocalPort:     "48094",
-					RemoteAddress: "127.0.0.1",
-					RemotePort:    "4039",
+					LocalAddress:  net.ParseIP("127.0.0.1"),
+					LocalPort:     48094,
+					RemoteAddress: net.ParseIP("127.0.0.1"),
+					RemotePort:    4039,
 				},
 				PID:  25196,
 				Name: "cello-app",
@@ -63,10 +64,10 @@ func TestLSOFParsing(t *testing.T) {
 			{
 				Connection: Connection{
 					Transport:     "tcp",
-					LocalAddress:  "::1",
-					LocalPort:     "6600",
-					RemoteAddress: "::1",
-					RemotePort:    "50992",
+					LocalAddress:  net.ParseIP("::1"),
+					LocalPort:     6600,
+					RemoteAddress: net.ParseIP("::1"),
+					RemotePort:    50992,
 				},
 				PID:  13100,
 				Name: "mpd",
@@ -74,10 +75,10 @@ func TestLSOFParsing(t *testing.T) {
 			{
 				Connection: Connection{
 					Transport:     "tcp",
-					LocalAddress:  "2003:45:2b57:8900:1869:2947:f942:aba7",
-					LocalPort:     "55711",
-					RemoteAddress: "2a00:1450:4008:c01::11",
-					RemotePort:    "443",
+					LocalAddress:  net.ParseIP("2003:45:2b57:8900:1869:2947:f942:aba7"),
+					LocalPort:     55711,
+					RemoteAddress: net.ParseIP("2a00:1450:4008:c01::11"),
+					RemotePort:    443,
 				},
 				PID:  14612,
 				Name: "chromium",
@@ -85,10 +86,10 @@ func TestLSOFParsing(t *testing.T) {
 			{
 				Connection: Connection{
 					Transport:     "tcp",
-					LocalAddress:  "192.168.2.111",
-					LocalPort:     "37158",
-					RemoteAddress: "192.0.72.2",
-					RemotePort:    "80",
+					LocalAddress:  net.ParseIP("192.168.2.111"),
+					LocalPort:     37158,
+					RemoteAddress: net.ParseIP("192.0.72.2"),
+					RemotePort:    80,
 				},
 				PID:  14612,
 				Name: "chromium",
@@ -96,10 +97,10 @@ func TestLSOFParsing(t *testing.T) {
 			{
 				Connection: Connection{
 					Transport:     "tcp",
-					LocalAddress:  "192.168.2.111",
-					LocalPort:     "44013",
-					RemoteAddress: "54.229.241.196",
-					RemotePort:    "80",
+					LocalAddress:  net.ParseIP("192.168.2.111"),
+					LocalPort:     44013,
+					RemoteAddress: net.ParseIP("54.229.241.196"),
+					RemotePort:    80,
 				},
 				PID:  14612,
 				Name: "chromium",
@@ -107,10 +108,10 @@ func TestLSOFParsing(t *testing.T) {
 			{
 				Connection: Connection{
 					Transport:     "tcp",
-					LocalAddress:  "192.168.2.111",
-					LocalPort:     "56385",
-					RemoteAddress: "74.201.105.31",
-					RemotePort:    "443",
+					LocalAddress:  net.ParseIP("192.168.2.111"),
+					LocalPort:     56385,
+					RemoteAddress: net.ParseIP("74.201.105.31"),
+					RemotePort:    443,
 				},
 				PID:  14612,
 				Name: "chromium",
@@ -118,10 +119,10 @@ func TestLSOFParsing(t *testing.T) {
 			{
 				Connection: Connection{
 					Transport:     "tcp",
-					LocalAddress:  "192.168.2.111",
-					LocalPort:     "33963",
-					RemoteAddress: "192.168.2.71",
-					RemotePort:    "22",
+					LocalAddress:  net.ParseIP("192.168.2.111"),
+					LocalPort:     33963,
+					RemoteAddress: net.ParseIP("192.168.2.71"),
+					RemotePort:    22,
 				},
 				PID:  21356,
 				Name: "ssh",
