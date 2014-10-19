@@ -1,7 +1,6 @@
 package procspy
 
 import (
-	"net"
 	"reflect"
 	"testing"
 )
@@ -17,36 +16,36 @@ func TestTransport4(t *testing.T) {
 	expected := []transport{
 		{
 			state:         10,
-			localAddress:  net.IP{0x0, 0x0, 0x0, 0x0},
+			localAddress:  []byte{0, 0, 0, 0},
 			localPort:     0xa6c0,
-			remoteAddress: net.IP{0x0, 0x0, 0x0, 0x0},
+			remoteAddress: []byte{0, 0, 0, 0},
 			remotePort:    0x0,
 			uid:           105,
 			inode:         5107,
 		},
 		{
 			state:         10,
-			localAddress:  net.IP{0x0, 0x0, 0x0, 0x0},
+			localAddress:  []byte{0, 0, 0, 0},
 			localPort:     0x006f,
-			remoteAddress: net.IP{0x0, 0x0, 0x0, 0x0},
+			remoteAddress: []byte{0, 0, 0, 0},
 			remotePort:    0x0,
 			uid:           0,
 			inode:         5084,
 		},
 		{
 			state:         10,
-			localAddress:  net.IP{0x7f, 0x0, 0x0, 0x01},
+			localAddress:  []byte{0x7f, 0x0, 0x0, 0x01},
 			localPort:     0x0019,
-			remoteAddress: net.IP{0x0, 0x0, 0x0, 0x0},
+			remoteAddress: []byte{0, 0, 0, 0},
 			remotePort:    0x0,
 			uid:           0,
 			inode:         10550,
 		},
 		{
 			state:         1,
-			localAddress:  net.IP{0x2e, 0xf6, 0x2c, 0xa1},
+			localAddress:  []byte{0x2e, 0xf6, 0x2c, 0xa1},
 			localPort:     0xe4d7,
-			remoteAddress: net.IP{0xc0, 0x1e, 0xfc, 0x57},
+			remoteAddress: []byte{0xc0, 0x1e, 0xfc, 0x57},
 			remotePort:    0x01bb,
 			uid:           1000,
 			inode:         639474,
@@ -73,23 +72,23 @@ func TestTransport6(t *testing.T) {
 	expected := []transport{
 		{
 			state:         10,
-			localAddress:  net.IP(make([]byte, 16)),
+			localAddress:  make([]byte, 16),
 			localPort:     0x19c8,
-			remoteAddress: net.IP(make([]byte, 16)),
+			remoteAddress: make([]byte, 16),
 			remotePort:    0x0,
 			uid:           0,
 			inode:         23661201,
 		},
 		{
 			state: 1,
-			localAddress: net.IP{
+			localAddress: []byte{
 				0x20, 0x03, 0, 0x45,
 				0x2b, 0x69, 0xbe, 0x00,
 				0xbd, 0x1e, 0xe3, 0x8a,
 				0x10, 0x9d, 0x9d, 0x91,
 			},
 			localPort: 0xd61c,
-			remoteAddress: net.IP{
+			remoteAddress: []byte{
 				0x2a, 0x00, 0x14, 0x50,
 				0x40, 0x05, 0x08, 0x08,
 				0, 0, 0, 0,

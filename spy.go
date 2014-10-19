@@ -15,6 +15,7 @@ type Connection struct {
 	LocalPort     uint16
 	RemoteAddress net.IP
 	RemotePort    uint16
+	inode         uint64
 }
 
 // ConnectionProc is a single connection with PID/process name.

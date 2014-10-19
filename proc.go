@@ -4,8 +4,6 @@ package procspy
 
 import (
 	"bytes"
-	"encoding/hex"
-	"net"
 	"os"
 	"strconv"
 	"strings"
@@ -19,7 +17,7 @@ const (
 
 // procProcesses gives all processes for the given connections. It is used by
 // the linux version of Processes().
-func procProcesses(conn []transport) []ConnectionProc {
+func procProcesses(conn []Connection) []ConnectionProc {
 	// A map of inode -> pid
 	inodes, err := walkProcPid()
 	if err != nil {
@@ -34,17 +32,20 @@ func procProcesses(conn []transport) []ConnectionProc {
 				// Process might be gone by now
 				continue
 			}
-			if tp.remoteAddress.IsUnspecified() {
-				// Remote address is zero. This is a listen entry.
-				continue
-			}
+			// conn only has 'Established' connections.
+			// if net.IP(tp.RemoteAddress).IsUnspecified() {
+			// // Remote address is zero. This is a listen entry.
+			// continue
+			// }
 			res = append(res, ConnectionProc{
+				// Connection: tp,
 				Connection: Connection{
-					Transport:     "tcp",
-					LocalAddress:  tp.localAddress,
-					LocalPort:     tp.localPort,
-					RemoteAddress: tp.remoteAddress,
-					RemotePort:    tp.remotePort,
+					Transport:     tp.Transport,
+					LocalAddress:  tp.LocalAddress,
+					LocalPort:     tp.LocalPort,
+					RemoteAddress: tp.RemoteAddress,
+					RemotePort:    tp.RemotePort,
+					inode:         tp.inode,
 				},
 				PID:  pid,
 				Name: name,
@@ -54,22 +55,30 @@ func procProcesses(conn []transport) []ConnectionProc {
 	return res
 }
 
-// connections gives all TCP IPv{4,6} connections as found in
+// sync.Pool turns out cheaper than keeping a freelist.
+var bufPool = sync.Pool{
+	New: func() interface{} {
+		return bytes.NewBuffer(make([]byte, 0, 5000))
+	},
+}
+
+// procConnections gives all TCP IPv{4,6} connections as found in
 // /proc/net/tcp{,6}.  It is used by the linux version of Processes().
 func procConnections() []transport {
 	var res []transport
+	buf := bufPool.Get().(*bytes.Buffer)
 	for _, procFile := range []string{
 		procRoot + "/net/tcp",
 		procRoot + "/net/tcp6",
 	} {
-		buf, err := readFile(procFile)
-		if err != nil {
+		buf.Reset()
+		if err := readFile(procFile, buf); err != nil {
 			// File might not be there if IPv{4,6} is not supported.
 			continue
 		}
 		res = append(res, parseTransport(buf.String())...)
-		bufPool.Put(buf)
 	}
+	bufPool.Put(buf)
 	return res
 }
 
@@ -125,26 +134,39 @@ func walkProcPid() (map[uint64]uint, error) {
 
 // transport are found in /proc/net/{tcp,udp}{,6} files
 type transport struct {
-	state         int
-	localAddress  net.IP
+	state         uint16
+	localAddress  []byte
 	localPort     uint16
-	remoteAddress net.IP
+	remoteAddress []byte
 	remotePort    uint16
-	uid           int
+	uid           uint64
 	inode         uint64
 }
 
-// parseTransport parses /proc/net/{tcp,udp}{,6} files
+// parseTransport parses /proc/net/{tcp,udp}{,6} files.
 func parseTransport(s string) []transport {
-	res := make([]transport, 0, 10)
+	// The file format is well-known, so we use some specialized versions of
+	// std lib functions to speed things up a bit.
 
-	// We know there are 18 fields, and we don't care about the last few.
-	fields := make([]string, 18)
-	for i, line := range strings.Split(s, "\n") {
-		if i == 0 {
-			// Skip header
-			continue
+	res := make([]transport, 0, len(s)/149) // heuristic
+
+	// Skip header
+	cursor := strings.IndexRune(s, '\n')
+	if cursor == -1 {
+		return nil
+	}
+	s = s[cursor+1:]
+
+	// Reuse fields every line. We know there are 21 fields in a line, but we
+	// don't need the last few.
+	fields := [18]string{}
+	for {
+		cursor = strings.IndexRune(s, '\n')
+		if cursor == -1 {
+			break
 		}
+		line := s[:cursor]
+		s = s[cursor+1:]
 		if len(line) == 0 {
 			break
 		}
@@ -152,54 +174,26 @@ func parseTransport(s string) []transport {
 		// '  sl local_address rem_address st tx_queue rx_queue tr tm->when retrnsmt uid timeout inode <more>'
 		// '  0: 00000000:0FC9 00000000:0000 0A 00000000:00000000 00:00000000 00000000  1000        0 11276449 1 ffff8801029607c0 100 0 0 10 0'
 		procNetFields(line, &fields)
-		if len(fields) < 10 {
-			continue
-		}
 
-		localAddress, err := scanAddress(fields[1])
+		t := transport{}
+
+		t.localAddress = scanAddress(fields[1])
+		t.localPort = uint16(parseHex(fields[2]))
+		t.remoteAddress = scanAddress(fields[3])
+		t.remotePort = uint16(parseHex(fields[4]))
+		t.state = uint16(parseHex(fields[5]))
+
+		var err error
+		t.uid, err = strconv.ParseUint(fields[11], 10, 64)
 		if err != nil {
 			continue
 		}
 
-		localPort, err := strconv.ParseUint(fields[2], 16, 16)
+		t.inode, err = strconv.ParseUint(fields[13], 10, 64)
 		if err != nil {
 			continue
 		}
-
-		remoteAddress, err := scanAddress(fields[3])
-		if err != nil {
-			continue
-		}
-
-		remotePort, err := strconv.ParseUint(fields[4], 16, 16)
-		if err != nil {
-			continue
-		}
-
-		state, err := strconv.ParseUint(fields[5], 16, 32)
-		if err != nil {
-			continue
-		}
-
-		uid, err := strconv.Atoi(fields[11])
-		if err != nil {
-			continue
-		}
-
-		inode, err := strconv.ParseUint(fields[13], 10, 64)
-		if err != nil {
-			continue
-		}
-		res = append(res, transport{
-			state:         int(state),
-			localAddress:  localAddress,
-			localPort:     uint16(localPort),
-			remoteAddress: remoteAddress,
-			remotePort:    uint16(remotePort),
-			uid:           uid,
-			inode:         inode,
-		})
-
+		res = append(res, t)
 	}
 	return res
 }
@@ -208,21 +202,15 @@ func parseTransport(s string) []transport {
 // Handles IPv4 and IPv6 addresses.
 // The address is a big endian 32 bit ints, hex encoded. Since net.IP is a
 // byte slice we just decode the hex and flip the bytes in every group of 4.
-func scanAddress(in string) (net.IP, error) {
+func scanAddress(in string) []byte {
 	// Network address is big endian. Can be either ipv4 or ipv6.
-	address := make([]byte, 16)
-	n, err := hex.Decode(address, []byte(in))
-	if err != nil {
-		return nil, err
-	}
-	address = address[:n]
+	address := hexDecode(in)
 	// reverse every 4 byte-sequence.
 	for i := 0; i < len(address); i += 4 {
 		address[i], address[i+3] = address[i+3], address[i]
 		address[i+1], address[i+2] = address[i+2], address[i+1]
 	}
-
-	return net.IP(address), err
+	return address
 }
 
 // procName does a pid->name lookup
@@ -244,43 +232,74 @@ func procName(pid uint) (string, error) {
 	return string(name[:l-1]), nil
 }
 
-// Copy of the standard stings.FieldsFunc(), but just for our tcp lines.
-// We split on ' ' and ':'
-func procNetFields(s string, a *[]string) {
+// Copy of the standard strings.FieldsFunc(), but just for our tcp lines.
+// We split on ' ' and ':'.
+func procNetFields(s string, a *[18]string) {
 	na := 0
 	fieldStart := -1 // Set to -1 when looking for start of field.
 	for i := 0; i < len(s) && na < len(*a); i++ {
-		if s[i] == ' ' || s[i] == ':' {
+		switch s[i] {
+		case ' ', ':':
 			if fieldStart >= 0 {
 				(*a)[na] = s[fieldStart:i]
 				na++
 				fieldStart = -1
 			}
-		} else if fieldStart == -1 {
-			fieldStart = i
+		default:
+			if fieldStart == -1 {
+				fieldStart = i
+			}
 		}
 	}
-	if fieldStart >= 0 { // Last field might end at EOF.
-		(*a)[na] = s[fieldStart:]
-	}
 }
 
-var bufPool = sync.Pool{
-	New: func() interface{} {
-		return bytes.NewBuffer(make([]byte, 0, 5000))
-	},
-}
-
-// readFile read a /proc file info a buffer.
-func readFile(filename string) (*bytes.Buffer, error) {
+// readFile reads a /proc file info a buffer.
+func readFile(filename string, buf *bytes.Buffer) error {
 	f, err := os.Open(filename)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	defer f.Close()
-	buf := bufPool.Get().(*bytes.Buffer)
-	buf.Reset()
-	// buf := bytes.NewBuffer(make([]byte, 0, 5000))
 	_, err = buf.ReadFrom(f)
-	return buf, err
+	f.Close()
+	return err
+}
+
+// Simplified copy of strconv.ParseUint.
+func parseHex(s string) uint {
+	n := uint(0)
+	for i := 0; i < len(s); i++ {
+		n *= 16
+		n += uint(fromHexChar(s[i]))
+	}
+	return n
+}
+
+// hexDecode and fromHexChar are taken from encoding/hex.
+func hexDecode(src string) []byte {
+	if len(src)%2 == 1 {
+		return nil
+	}
+
+	dst := make([]byte, len(src)/2)
+	for i := 0; i < len(src)/2; i++ {
+		a := fromHexChar(src[i*2])
+		b := fromHexChar(src[i*2+1])
+		dst[i] = (a << 4) | b
+	}
+
+	return dst
+}
+
+// fromHexChar converts a hex character into its value.
+func fromHexChar(c byte) byte {
+	switch {
+	case '0' <= c && c <= '9':
+		return c - '0'
+	case 'a' <= c && c <= 'f':
+		return c - 'a' + 10
+	case 'A' <= c && c <= 'F':
+		return c - 'A' + 10
+	}
+
+	return 0
 }
