@@ -1,28 +1,39 @@
 package procspy
 
+import (
+	"bytes"
+	"sync"
+)
+
 const (
 	tcpEstablished = 1 // according to /include/net/tcp_states.h
 )
+
+// sync.Pool turns out cheaper than keeping a freelist.
+var bufPool = sync.Pool{
+	New: func() interface{} {
+		return bytes.NewBuffer(make([]byte, 0, 5000))
+	},
+}
 
 // Connections returns all established (TCP) connections.
 // No need to be root to run this.
 func Connections() ([]Connection, error) {
 	var c []Connection
-	for _, pc := range procConnections() {
-
-		if pc.state != tcpEstablished {
+	buf := bufPool.Get().(*bytes.Buffer)
+	for _, procFile := range []string{
+		procRoot + "/net/tcp",
+		procRoot + "/net/tcp6",
+	} {
+		buf.Reset()
+		if err := readFile(procFile, buf); err != nil {
+			// File might not be there if IPv{4,6} is not supported.
 			continue
 		}
-
-		c = append(c, Connection{
-			Transport:     "tcp",
-			LocalAddress:  pc.localAddress[:],
-			LocalPort:     pc.localPort,
-			RemoteAddress: pc.remoteAddress[:],
-			RemotePort:    pc.remotePort,
-			inode:         pc.inode,
-		})
+		// Only read established connections.
+		c = append(c, parseTransport(buf.String(), tcpEstablished)...)
 	}
+	bufPool.Put(buf)
 	return c, nil
 }
 

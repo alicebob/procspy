@@ -16,7 +16,7 @@ func main() {
 		fmt.Printf(" - %v\n", c)
 	}
 
-	ps, err := procspy.Processes()
+	ps, err := procspy.Processes(cs)
 	if err != nil {
 		panic(err)
 	}

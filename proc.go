@@ -4,10 +4,10 @@ package procspy
 
 import (
 	"bytes"
+	"net"
 	"os"
 	"strconv"
 	"strings"
-	"sync"
 	"syscall"
 )
 
@@ -52,33 +52,6 @@ func procProcesses(conn []Connection) []ConnectionProc {
 			})
 		}
 	}
-	return res
-}
-
-// sync.Pool turns out cheaper than keeping a freelist.
-var bufPool = sync.Pool{
-	New: func() interface{} {
-		return bytes.NewBuffer(make([]byte, 0, 5000))
-	},
-}
-
-// procConnections gives all TCP IPv{4,6} connections as found in
-// /proc/net/tcp{,6}.  It is used by the linux version of Processes().
-func procConnections() []transport {
-	var res []transport
-	buf := bufPool.Get().(*bytes.Buffer)
-	for _, procFile := range []string{
-		procRoot + "/net/tcp",
-		procRoot + "/net/tcp6",
-	} {
-		buf.Reset()
-		if err := readFile(procFile, buf); err != nil {
-			// File might not be there if IPv{4,6} is not supported.
-			continue
-		}
-		res = append(res, parseTransport(buf.String())...)
-	}
-	bufPool.Put(buf)
 	return res
 }
 
@@ -132,23 +105,13 @@ func walkProcPid() (map[uint64]uint, error) {
 	return procmap, nil
 }
 
-// transport are found in /proc/net/{tcp,udp}{,6} files
-type transport struct {
-	state         uint16
-	localAddress  []byte
-	localPort     uint16
-	remoteAddress []byte
-	remotePort    uint16
-	uid           uint64
-	inode         uint64
-}
-
 // parseTransport parses /proc/net/{tcp,udp}{,6} files.
-func parseTransport(s string) []transport {
+// It will filter out all rows not in wantedState.
+func parseTransport(s string, wantedState uint) []Connection {
 	// The file format is well-known, so we use some specialized versions of
 	// std lib functions to speed things up a bit.
 
-	res := make([]transport, 0, len(s)/149) // heuristic
+	res := make([]Connection, 0, len(s)/149) // heuristic
 
 	// Skip header
 	cursor := strings.IndexRune(s, '\n')
@@ -175,20 +138,18 @@ func parseTransport(s string) []transport {
 		// '  0: 00000000:0FC9 00000000:0000 0A 00000000:00000000 00:00000000 00000000  1000        0 11276449 1 ffff8801029607c0 100 0 0 10 0'
 		procNetFields(line, &fields)
 
-		t := transport{}
-
-		t.localAddress = scanAddress(fields[1])
-		t.localPort = uint16(parseHex(fields[2]))
-		t.remoteAddress = scanAddress(fields[3])
-		t.remotePort = uint16(parseHex(fields[4]))
-		t.state = uint16(parseHex(fields[5]))
-
-		var err error
-		t.uid, err = strconv.ParseUint(fields[11], 10, 64)
-		if err != nil {
+		if state := parseHex(fields[5]); state != wantedState {
 			continue
 		}
 
+		t := Connection{}
+
+		t.LocalAddress = net.IP(scanAddress(fields[1]))
+		t.LocalPort = uint16(parseHex(fields[2]))
+		t.RemoteAddress = net.IP(scanAddress(fields[3]))
+		t.RemotePort = uint16(parseHex(fields[4]))
+
+		var err error
 		t.inode, err = strconv.ParseUint(fields[13], 10, 64)
 		if err != nil {
 			continue

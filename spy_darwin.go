@@ -28,7 +28,8 @@ func Connections() ([]Connection, error) {
 
 // Processes returns the list of connections with processes.
 // You need to be root to find all processes.
-func Processes() ([]ConnectionProc, error) {
+func Processes([]Connection) ([]ConnectionProc, error) {
+	// argument isn't used in the Darwin version.
 	out, err := exec.Command(
 		lsofBinary,
 		"-i",       // only Internet files
