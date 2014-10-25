@@ -11,7 +11,7 @@ const (
 
 // Connections returns all established (TCP) connections.
 // No need to be root to run this.
-func Connections() ([]Connection, error) {
+var cbConnections = func() ([]Connection, error) {
 	out, err := exec.Command(
 		netstatBinary,
 		"-n", // no number resolving
@@ -28,7 +28,7 @@ func Connections() ([]Connection, error) {
 
 // Processes returns the list of connections with processes.
 // You need to be root to find all processes.
-func Processes([]Connection) ([]ConnectionProc, error) {
+var cbProcesses = func([]Connection) ([]ConnectionProc, error) {
 	// argument isn't used in the Darwin version.
 	out, err := exec.Command(
 		lsofBinary,
