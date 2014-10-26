@@ -5,10 +5,6 @@ import (
 	"sync"
 )
 
-const (
-	tcpEstablished = 1 // according to /include/net/tcp_states.h
-)
-
 // sync.Pool turns out cheaper than keeping a freelist.
 var bufPool = sync.Pool{
 	New: func() interface{} {
