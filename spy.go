@@ -8,6 +8,10 @@ import (
 	"net"
 )
 
+const (
+	tcpEstablished = 1 // according to /include/net/tcp_states.h
+)
+
 // Connection is a (TCP) connection.
 type Connection struct {
 	Transport     string
