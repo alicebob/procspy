@@ -7,7 +7,6 @@ import (
 	"net"
 	"os"
 	"strconv"
-	"strings"
 	"syscall"
 )
 
@@ -107,14 +106,14 @@ func walkProcPid() (map[uint64]uint, error) {
 
 // parseTransport parses /proc/net/{tcp,udp}{,6} files.
 // It will filter out all rows not in wantedState.
-func parseTransport(s string, wantedState uint) []Connection {
+func parseTransport(s []byte, wantedState uint) []Connection {
 	// The file format is well-known, so we use some specialized versions of
 	// std lib functions to speed things up a bit.
 
 	res := make([]Connection, 0, len(s)/149) // heuristic
 
 	// Skip header
-	cursor := strings.IndexRune(s, '\n')
+	cursor := bytes.IndexByte(s, '\n')
 	if cursor == -1 {
 		return nil
 	}
@@ -122,9 +121,9 @@ func parseTransport(s string, wantedState uint) []Connection {
 
 	// Reuse fields every line. We know there are 21 fields in a line, but we
 	// don't need the last few.
-	fields := [18]string{}
+	fields := [18][]byte{}
 	for {
-		cursor = strings.IndexRune(s, '\n')
+		cursor = bytes.IndexByte(s, '\n')
 		if cursor == -1 {
 			break
 		}
@@ -148,12 +147,8 @@ func parseTransport(s string, wantedState uint) []Connection {
 		t.LocalPort = uint16(parseHex(fields[2]))
 		t.RemoteAddress = net.IP(scanAddress(fields[3]))
 		t.RemotePort = uint16(parseHex(fields[4]))
+		t.inode = parseDec(fields[13])
 
-		var err error
-		t.inode, err = strconv.ParseUint(fields[13], 10, 64)
-		if err != nil {
-			continue
-		}
 		res = append(res, t)
 	}
 	return res
@@ -163,7 +158,7 @@ func parseTransport(s string, wantedState uint) []Connection {
 // Handles IPv4 and IPv6 addresses.
 // The address is a big endian 32 bit ints, hex encoded. Since net.IP is a
 // byte slice we just decode the hex and flip the bytes in every group of 4.
-func scanAddress(in string) []byte {
+func scanAddress(in []byte) []byte {
 	// Network address is big endian. Can be either ipv4 or ipv6.
 	address := hexDecode(in)
 	// reverse every 4 byte-sequence.
@@ -195,7 +190,7 @@ func procName(pid uint) (string, error) {
 
 // Copy of the standard strings.FieldsFunc(), but just for our tcp lines.
 // We split on ' ' and ':'.
-func procNetFields(s string, a *[18]string) {
+func procNetFields(s []byte, a *[18][]byte) {
 	na := 0
 	fieldStart := -1 // Set to -1 when looking for start of field.
 	for i := 0; i < len(s) && na < len(*a); i++ {
@@ -225,8 +220,8 @@ func readFile(filename string, buf *bytes.Buffer) error {
 	return err
 }
 
-// Simplified copy of strconv.ParseUint.
-func parseHex(s string) uint {
+// Simplified copy of strconv.ParseUint(16).
+func parseHex(s []byte) uint {
 	n := uint(0)
 	for i := 0; i < len(s); i++ {
 		n *= 16
@@ -235,8 +230,18 @@ func parseHex(s string) uint {
 	return n
 }
 
+// Simplified copy of strconv.ParseUint(10).
+func parseDec(s []byte) uint64 {
+	n := uint64(0)
+	for _, c := range s {
+		n *= 10
+		n += uint64(c - '0')
+	}
+	return n
+}
+
 // hexDecode and fromHexChar are taken from encoding/hex.
-func hexDecode(src string) []byte {
+func hexDecode(src []byte) []byte {
 	if len(src)%2 == 1 {
 		return nil
 	}

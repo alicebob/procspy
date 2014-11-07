@@ -25,7 +25,7 @@ var cbConnections = func() ([]Connection, error) {
 			continue
 		}
 		// Only read established connections.
-		c = append(c, parseTransport(buf.String(), tcpEstablished)...)
+		c = append(c, parseTransport(buf.Bytes(), tcpEstablished)...)
 	}
 	bufPool.Put(buf)
 	return c, nil
