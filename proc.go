@@ -112,6 +112,10 @@ func parseTransport(s []byte, wantedState uint) []Connection {
 
 	res := make([]Connection, 0, len(s)/149) // heuristic
 
+	// Lines are:
+	// '  sl local_address rem_address st tx_queue rx_queue tr tm->when retrnsmt uid timeout inode <more>'
+	// '  0: 00000000:0FC9 00000000:0000 0A 00000000:00000000 00:00000000 00000000  1000        0 11276449 1 ffff8801029607c0 100 0 0 10 0'
+
 	// Skip header
 	cursor := bytes.IndexByte(s, '\n')
 	if cursor == -1 {
@@ -119,54 +123,55 @@ func parseTransport(s []byte, wantedState uint) []Connection {
 	}
 	s = s[cursor+1:]
 
-	// Reuse fields every line. We know there are 21 fields in a line, but we
-	// don't need the last few.
-	fields := [18][]byte{}
+	var (
+		local, remote, state, inode []byte
+	)
 	for {
-		cursor = bytes.IndexByte(s, '\n')
-		if cursor == -1 {
+		if len(s) == 0 {
 			break
 		}
-		line := s[:cursor]
-		s = s[cursor+1:]
-		if len(line) == 0 {
-			break
-		}
-		// Fields are split on ' ' and ':'(!):
-		// '  sl local_address rem_address st tx_queue rx_queue tr tm->when retrnsmt uid timeout inode <more>'
-		// '  0: 00000000:0FC9 00000000:0000 0A 00000000:00000000 00:00000000 00000000  1000        0 11276449 1 ffff8801029607c0 100 0 0 10 0'
-		procNetFields(line, &fields)
-
-		if state := parseHex(fields[5]); state != wantedState {
+		_, s = nextField(s) // 'sl' column
+		local, s = nextField(s)
+		remote, s = nextField(s)
+		state, s = nextField(s)
+		if parseHex(state) != wantedState {
+			s = nextLine(s)
 			continue
 		}
+		_, s = nextField(s) // 'tx_queue' column
+		_, s = nextField(s) // 'rx_queue' column
+		_, s = nextField(s) // 'tr' column
+		_, s = nextField(s) // 'uid' column
+		_, s = nextField(s) // 'timeout' column
+		inode, s = nextField(s)
 
 		t := Connection{}
-
-		t.LocalAddress = net.IP(scanAddress(fields[1]))
-		t.LocalPort = uint16(parseHex(fields[2]))
-		t.RemoteAddress = net.IP(scanAddress(fields[3]))
-		t.RemotePort = uint16(parseHex(fields[4]))
-		t.inode = parseDec(fields[13])
-
+		t.LocalAddress, t.LocalPort = scanAddress(local)
+		t.RemoteAddress, t.RemotePort = scanAddress(remote)
+		t.inode = parseDec(inode)
 		res = append(res, t)
+
+		s = nextLine(s)
+
 	}
 	return res
 }
 
-// scanAddress parses 'A12CF62E' to the address.
+// scanAddress parses 'A12CF62E:00AA' to the address/port
 // Handles IPv4 and IPv6 addresses.
 // The address is a big endian 32 bit ints, hex encoded. Since net.IP is a
 // byte slice we just decode the hex and flip the bytes in every group of 4.
-func scanAddress(in []byte) []byte {
+func scanAddress(in []byte) (net.IP, uint16) {
+	col := bytes.IndexByte(in, ':')
 	// Network address is big endian. Can be either ipv4 or ipv6.
-	address := hexDecode(in)
+	address := hexDecode(in[:col])
 	// reverse every 4 byte-sequence.
 	for i := 0; i < len(address); i += 4 {
 		address[i], address[i+3] = address[i+3], address[i]
 		address[i+1], address[i+2] = address[i+2], address[i+1]
 	}
-	return address
+	port := parseHex(in[col+1:])
+	return net.IP(address), uint16(port)
 }
 
 // procName does a pid->name lookup
@@ -188,25 +193,30 @@ func procName(pid uint) (string, error) {
 	return string(name[:l-1]), nil
 }
 
-// Copy of the standard strings.FieldsFunc(), but just for our tcp lines.
-// We split on ' ' and ':'.
-func procNetFields(s []byte, a *[18][]byte) {
-	na := 0
-	fieldStart := -1 // Set to -1 when looking for start of field.
-	for i := 0; i < len(s) && na < len(*a); i++ {
-		switch s[i] {
-		case ' ', ':':
-			if fieldStart >= 0 {
-				(*a)[na] = s[fieldStart:i]
-				na++
-				fieldStart = -1
-			}
-		default:
-			if fieldStart == -1 {
-				fieldStart = i
-			}
+func nextField(s []byte) ([]byte, []byte) {
+	// Skip whitespace.
+	for i, b := range s {
+		if b != ' ' {
+			s = s[i:]
+			break
 		}
 	}
+	// Up until the next non-space field.
+	for i, b := range s {
+		if b == ' ' {
+			return s[:i], s[i:]
+		}
+	}
+	return nil, nil
+}
+
+func nextLine(s []byte) []byte {
+	for i, b := range s {
+		if b == '\n' {
+			return s[i+1:]
+		}
+	}
+	return nil
 }
 
 // readFile reads a /proc file info a buffer.
