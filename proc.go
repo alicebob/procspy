@@ -104,6 +104,25 @@ func walkProcPid() (map[uint64]uint, error) {
 	return procmap, nil
 }
 
+// procName does a pid->name lookup
+func procName(pid uint) (string, error) {
+	fh, err := os.Open(procRoot + "/" + strconv.FormatUint(uint64(pid), 10) + "/comm")
+	if err != nil {
+		return "", err
+	}
+	name := make([]byte, 1024)
+	l, err := fh.Read(name)
+	fh.Close()
+	if err != nil {
+		return "", err
+	}
+	if l < 2 {
+		return "", nil
+	}
+	// drop trailing "\n"
+	return string(name[:l-1]), nil
+}
+
 // parseTransport parses /proc/net/{tcp,udp}{,6} files.
 // It will filter out all rows not in wantedState.
 func parseTransport(s []byte, wantedState uint) []Connection {
@@ -148,7 +167,6 @@ func parseTransport(s []byte, wantedState uint) []Connection {
 		res = append(res, t)
 
 		s = nextLine(s)
-
 	}
 	return res
 }
@@ -168,27 +186,8 @@ func scanAddress(in []byte) (net.IP, uint16) {
 		address[i], address[i+3] = address[i+3], address[i]
 		address[i+1], address[i+2] = address[i+2], address[i+1]
 	}
-	port := parseHex(in[col+1:])
-	return net.IP(address), uint16(port)
-}
-
-// procName does a pid->name lookup
-func procName(pid uint) (string, error) {
-	fh, err := os.Open(procRoot + "/" + strconv.FormatUint(uint64(pid), 10) + "/comm")
-	if err != nil {
-		return "", err
-	}
-	name := make([]byte, 1024)
-	l, err := fh.Read(name)
-	fh.Close()
-	if err != nil {
-		return "", err
-	}
-	if l < 2 {
-		return "", nil
-	}
-	// drop trailing "\n"
-	return string(name[:l-1]), nil
+	port := uint16(parseHex(in[col+1:]))
+	return net.IP(address), port
 }
 
 func nextField(s []byte) ([]byte, []byte) {
@@ -199,7 +198,7 @@ func nextField(s []byte) ([]byte, []byte) {
 			break
 		}
 	}
-	// Up until the next non-space field.
+	// Up until the next whitespace field.
 	for i, b := range s {
 		if b == ' ' {
 			return s[:i], s[i:]
@@ -209,12 +208,11 @@ func nextField(s []byte) ([]byte, []byte) {
 }
 
 func nextLine(s []byte) []byte {
-	for i, b := range s {
-		if b == '\n' {
-			return s[i+1:]
-		}
+	i := bytes.IndexByte(s, '\n')
+	if i == -1 {
+		return nil
 	}
-	return nil
+	return s[i+1:]
 }
 
 // readFile reads a /proc file info a buffer.
@@ -260,12 +258,11 @@ func hexDecode(src []byte) []byte {
 		b := fromHexChar(src[i*2+1])
 		dst[i] = (a << 4) | b
 	}
-
 	return dst
 }
 
 // fromHexChar converts a hex character into its value.
-func fromHexChar(c byte) byte {
+func fromHexChar(c byte) uint8 {
 	switch {
 	case '0' <= c && c <= '9':
 		return c - '0'
@@ -274,6 +271,5 @@ func fromHexChar(c byte) byte {
 	case 'A' <= c && c <= 'F':
 		return c - 'A' + 10
 	}
-
 	return 0
 }
