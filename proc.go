@@ -163,6 +163,9 @@ func parseTransport(s []byte, wantedState uint) []Connection {
 // byte slice we just decode the hex and flip the bytes in every group of 4.
 func scanAddress(in []byte) (net.IP, uint16) {
 	col := bytes.IndexByte(in, ':')
+	if col == -1 {
+		return nil, 0
+	}
 	// Network address is big endian. Can be either ipv4 or ipv6.
 	address := hexDecode(in[:col])
 	// reverse every 4 byte-sequence.

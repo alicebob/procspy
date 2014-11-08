@@ -16,40 +16,32 @@ func TestTransport4(t *testing.T) {
 	res := parseTransport([]byte(testString), tcpEstablished)
 	expected := []Connection{
 		{
-			// state:         10,
 			LocalAddress:  net.IP([]byte{0, 0, 0, 0}),
 			LocalPort:     0xa6c0,
 			RemoteAddress: net.IP([]byte{0, 0, 0, 0}),
 			RemotePort:    0x0,
-			// uid:           105,
-			inode: 5107,
+			inode:         5107,
 		},
 		{
-			// state:         10,
 			LocalAddress:  net.IP([]byte{0, 0, 0, 0}),
 			LocalPort:     0x006f,
 			RemoteAddress: net.IP([]byte{0, 0, 0, 0}),
 			RemotePort:    0x0,
-			// uid:           0,
-			inode: 5084,
+			inode:         5084,
 		},
 		{
-			// state:         10,
 			LocalAddress:  net.IP([]byte{0x7f, 0x0, 0x0, 0x01}),
 			LocalPort:     0x0019,
 			RemoteAddress: net.IP([]byte{0, 0, 0, 0}),
 			RemotePort:    0x0,
-			// uid:           0,
-			inode: 10550,
+			inode:         10550,
 		},
 		{
-			// state:         1,
 			LocalAddress:  net.IP([]byte{0x2e, 0xf6, 0x2c, 0xa1}),
 			LocalPort:     0xe4d7,
 			RemoteAddress: net.IP([]byte{0xc0, 0x1e, 0xfc, 0x57}),
 			RemotePort:    0x01bb,
-			// uid:           1000,
-			inode: 639474,
+			inode:         639474,
 		},
 	}
 
@@ -106,6 +98,30 @@ func TestTransport6(t *testing.T) {
 	}
 	if !reflect.DeepEqual(res, expected) {
 		t.Errorf("transport 6 error. Got\n%+v\nExpected\n%+v\n", res, expected)
+	}
+
+}
+
+func TestTransportNonsense(t *testing.T) {
+	testString := `  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode                                                     
+   0: 00000000:A6C0 00000000:0000 01 000000
+broken line
+`
+	res := parseTransport([]byte(testString), tcpEstablished)
+	expected := []Connection{
+		{
+			LocalAddress:  net.IP([]byte{0, 0, 0, 0}),
+			LocalPort:     0xa6c0,
+			RemoteAddress: net.IP([]byte{0, 0, 0, 0}),
+			RemotePort:    0x0,
+		},
+	}
+
+	if len(res) != 1 {
+		t.Errorf("Wanted 4")
+	}
+	if !reflect.DeepEqual(res, expected) {
+		t.Errorf("transport 4 error. Got\n%+v\nExpected\n%+v\n", res, expected)
 	}
 
 }
