@@ -110,18 +110,14 @@ func parseTransport(s []byte, wantedState uint) []Connection {
 	// The file format is well-known, so we use some specialized versions of
 	// std lib functions to speed things up a bit.
 
-	res := make([]Connection, 0, len(s)/149) // heuristic
+	res := make([]Connection, 0, len(s)/149/10) // heuristic. Lines are about 150 chars long, and say we have 10% established.
 
 	// Lines are:
 	// '  sl local_address rem_address st tx_queue rx_queue tr tm->when retrnsmt uid timeout inode <more>'
 	// '  0: 00000000:0FC9 00000000:0000 0A 00000000:00000000 00:00000000 00000000  1000        0 11276449 1 ffff8801029607c0 100 0 0 10 0'
 
 	// Skip header
-	cursor := bytes.IndexByte(s, '\n')
-	if cursor == -1 {
-		return nil
-	}
-	s = s[cursor+1:]
+	s = nextLine(s)
 
 	var (
 		local, remote, state, inode []byte
@@ -157,10 +153,9 @@ func parseTransport(s []byte, wantedState uint) []Connection {
 	return res
 }
 
-// scanAddress parses 'A12CF62E:00AA' to the address/port
-// Handles IPv4 and IPv6 addresses.
-// The address is a big endian 32 bit ints, hex encoded. Since net.IP is a
-// byte slice we just decode the hex and flip the bytes in every group of 4.
+// scanAddress parses 'A12CF62E:00AA' to the address/port. Handles IPv4 and
+// IPv6 addresses.  The address is a big endian 32 bit ints, hex encoded. We
+// just decode the hex and flip the bytes in every group of 4.
 func scanAddress(in []byte) (net.IP, uint16) {
 	col := bytes.IndexByte(in, ':')
 	if col == -1 {
