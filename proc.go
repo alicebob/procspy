@@ -179,15 +179,17 @@ func scanAddress(in []byte) (net.IP, uint16) {
 	if col == -1 {
 		return nil, 0
 	}
+
 	// Network address is big endian. Can be either ipv4 or ipv6.
 	address := hexDecode(in[:col])
+
 	// reverse every 4 byte-sequence.
 	for i := 0; i < len(address); i += 4 {
 		address[i], address[i+3] = address[i+3], address[i]
 		address[i+1], address[i+2] = address[i+2], address[i+1]
 	}
-	port := uint16(parseHex(in[col+1:]))
-	return net.IP(address), port
+
+	return net.IP(address), uint16(parseHex(in[col+1:]))
 }
 
 func nextField(s []byte) ([]byte, []byte) {
@@ -198,12 +200,14 @@ func nextField(s []byte) ([]byte, []byte) {
 			break
 		}
 	}
+
 	// Up until the next whitespace field.
 	for i, b := range s {
 		if b == ' ' {
 			return s[:i], s[i:]
 		}
 	}
+
 	return nil, nil
 }
 
@@ -215,8 +219,10 @@ func nextLine(s []byte) []byte {
 	return s[i+1:]
 }
 
-// readFile reads a /proc file info a buffer.
-func readFile(filename string, buf *bytes.Buffer) error {
+// readFile reads an arbitrary file into a buffer.
+// It's a variable so it can be overwritten for benchmarks.
+// That's bad practice and we should change it to be a dependency.
+var readFile = func(filename string, buf *bytes.Buffer) error {
 	f, err := os.Open(filename)
 	if err != nil {
 		return err

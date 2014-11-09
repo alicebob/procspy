@@ -14,14 +14,12 @@ const (
 
 // Connection is a (TCP) connection.
 type Connection struct {
-	Transport          string
-	localAddressBytes  [16]byte
-	LocalAddress       net.IP
-	LocalPort          uint16
-	remoteAddressBytes [16]byte
-	RemoteAddress      net.IP
-	RemotePort         uint16
-	inode              uint64
+	Transport     string
+	LocalAddress  net.IP
+	LocalPort     uint16
+	RemoteAddress net.IP
+	RemotePort    uint16
+	inode         uint64
 }
 
 // ConnectionProc is a single connection with PID/process name.
