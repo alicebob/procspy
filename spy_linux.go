@@ -5,32 +5,39 @@ import (
 	"sync"
 )
 
-// sync.Pool turns out cheaper than keeping a freelist.
 var bufPool = sync.Pool{
 	New: func() interface{} {
 		return bytes.NewBuffer(make([]byte, 0, 5000))
 	},
 }
 
-var cbConnections = func() ([]Connection, error) {
-	var c []Connection
-	buf := bufPool.Get().(*bytes.Buffer)
-	for _, procFile := range []string{
-		procRoot + "/net/tcp",
-		procRoot + "/net/tcp6",
-	} {
-		buf.Reset()
-		if err := readFile(procFile, buf); err != nil {
-			// File might not be there if IPv{4,6} is not supported.
-			continue
-		}
-		// Only read established connections.
-		c = append(c, parseTransport(buf.Bytes(), tcpEstablished)...)
-	}
-	bufPool.Put(buf)
-	return c, nil
+type pnConnIter struct {
+	pn  *ProcNet
+	buf *bytes.Buffer
 }
 
-var cbProcesses = func(c []Connection) ([]ConnectionProc, error) {
-	return procProcesses(c), nil
+func (c *pnConnIter) Next() *Connection {
+	n := c.pn.Next()
+	if n == nil {
+		// Done!
+		bufPool.Put(c.buf)
+	}
+	return n
+}
+
+// cbConnections sets Connections()
+var cbConnections = func() (ConnIter, error) {
+	buf := bufPool.Get().(*bytes.Buffer)
+	buf.Reset()
+	readFile(procRoot+"/net/tcp", buf)
+	readFile(procRoot+"/net/tcp6", buf)
+	return &pnConnIter{
+		pn:  NewProcNet(buf.Bytes(), tcpEstablished),
+		buf: buf,
+	}, nil
+}
+
+// cbProcesses sets Processes()
+var cbProcesses = func() (Procs, error) {
+	return walkProcPid()
 }

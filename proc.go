@@ -4,7 +4,6 @@ package procspy
 
 import (
 	"bytes"
-	"net"
 	"os"
 	"strconv"
 	"syscall"
@@ -14,47 +13,7 @@ const (
 	procRoot = "/proc"
 )
 
-// procProcesses gives all processes for the given connections. It is used by
-// the linux version of Processes().
-func procProcesses(conn []Connection) []ConnectionProc {
-	// A map of inode -> pid
-	inodes, err := walkProcPid()
-	if err != nil {
-		return nil
-	}
-
-	res := []ConnectionProc{}
-	for _, tp := range conn {
-		if pid, ok := inodes[tp.inode]; ok {
-			name, err := procName(pid)
-			if err != nil {
-				// Process might be gone by now
-				continue
-			}
-			// conn only has 'Established' connections.
-			// if net.IP(tp.RemoteAddress).IsUnspecified() {
-			// // Remote address is zero. This is a listen entry.
-			// continue
-			// }
-			res = append(res, ConnectionProc{
-				// Connection: tp,
-				Connection: Connection{
-					Transport:     tp.Transport,
-					LocalAddress:  tp.LocalAddress,
-					LocalPort:     tp.LocalPort,
-					RemoteAddress: tp.RemoteAddress,
-					RemotePort:    tp.RemotePort,
-					inode:         tp.inode,
-				},
-				PID:  pid,
-				Name: name,
-			})
-		}
-	}
-	return res
-}
-
-func walkProcPid() (map[uint64]uint, error) {
+func walkProcPid() (Procs, error) {
 	// Walk over all /proc entries (numerical ones, those are PIDs), and see if
 	// their ./fd/* files are symlink to sockets.
 	// Returns a map from socket id ('inode`) to PID.
@@ -68,7 +27,7 @@ func walkProcPid() (map[uint64]uint, error) {
 	if err != nil {
 		return nil, err
 	}
-	procmap := map[uint64]uint{}
+	procmap := Procs{}
 	var stat syscall.Stat_t
 	for _, dirName := range dirNames {
 		pid, err := strconv.ParseUint(dirName, 10, 0)
@@ -98,7 +57,15 @@ func walkProcPid() (map[uint64]uint, error) {
 			if stat.Mode&syscall.S_IFMT != syscall.S_IFSOCK {
 				continue
 			}
-			procmap[stat.Ino] = uint(pid)
+			name, err := procName(uint(pid))
+			if err != nil {
+				// Process might be gone by now
+				continue
+			}
+			procmap[stat.Ino] = Proc{
+				PID:  uint(pid),
+				Name: name,
+			}
 		}
 	}
 	return procmap, nil
@@ -123,95 +90,6 @@ func procName(pid uint) (string, error) {
 	return string(name[:l-1]), nil
 }
 
-// parseTransport parses /proc/net/{tcp,udp}{,6} files.
-// It will filter out all rows not in wantedState.
-func parseTransport(s []byte, wantedState uint) []Connection {
-	// The file format is well-known, so we use some specialized versions of
-	// std lib functions to speed things up a bit.
-
-	res := make([]Connection, 0, len(s)/149/10) // heuristic. Lines are about 150 chars long, and say we have 10% established.
-
-	// Lines are:
-	// '  sl local_address rem_address st tx_queue rx_queue tr tm->when retrnsmt uid timeout inode <more>'
-	// '  0: 00000000:0FC9 00000000:0000 0A 00000000:00000000 00:00000000 00000000  1000        0 11276449 1 ffff8801029607c0 100 0 0 10 0'
-
-	// Skip header
-	s = nextLine(s)
-
-	var (
-		local, remote, state, inode []byte
-	)
-	for {
-		if len(s) == 0 {
-			break
-		}
-		_, s = nextField(s) // 'sl' column
-		local, s = nextField(s)
-		remote, s = nextField(s)
-		state, s = nextField(s)
-		if parseHex(state) != wantedState {
-			s = nextLine(s)
-			continue
-		}
-		_, s = nextField(s) // 'tx_queue' column
-		_, s = nextField(s) // 'rx_queue' column
-		_, s = nextField(s) // 'tr' column
-		_, s = nextField(s) // 'uid' column
-		_, s = nextField(s) // 'timeout' column
-		inode, s = nextField(s)
-
-		t := Connection{}
-		t.LocalAddress, t.LocalPort = scanAddress(local)
-		t.RemoteAddress, t.RemotePort = scanAddress(remote)
-		t.inode = parseDec(inode)
-		res = append(res, t)
-
-		s = nextLine(s)
-	}
-	return res
-}
-
-// scanAddress parses 'A12CF62E:00AA' to the address/port. Handles IPv4 and
-// IPv6 addresses.  The address is a big endian 32 bit ints, hex encoded. We
-// just decode the hex and flip the bytes in every group of 4.
-func scanAddress(in []byte) (net.IP, uint16) {
-	col := bytes.IndexByte(in, ':')
-	if col == -1 {
-		return nil, 0
-	}
-
-	// Network address is big endian. Can be either ipv4 or ipv6.
-	address := hexDecode32big(in[:col])
-	return net.IP(address), uint16(parseHex(in[col+1:]))
-}
-
-func nextField(s []byte) ([]byte, []byte) {
-	// Skip whitespace.
-	for i, b := range s {
-		if b != ' ' {
-			s = s[i:]
-			break
-		}
-	}
-
-	// Up until the next whitespace field.
-	for i, b := range s {
-		if b == ' ' {
-			return s[:i], s[i:]
-		}
-	}
-
-	return nil, nil
-}
-
-func nextLine(s []byte) []byte {
-	i := bytes.IndexByte(s, '\n')
-	if i == -1 {
-		return nil
-	}
-	return s[i+1:]
-}
-
 // readFile reads an arbitrary file into a buffer.
 // It's a variable so it can be overwritten for benchmarks.
 // That's bad practice and we should change it to be a dependency.
@@ -223,51 +101,4 @@ var readFile = func(filename string, buf *bytes.Buffer) error {
 	_, err = buf.ReadFrom(f)
 	f.Close()
 	return err
-}
-
-// Simplified copy of strconv.ParseUint(16).
-func parseHex(s []byte) uint {
-	n := uint(0)
-	for i := 0; i < len(s); i++ {
-		n *= 16
-		n += uint(fromHexChar(s[i]))
-	}
-	return n
-}
-
-// Simplified copy of strconv.ParseUint(10).
-func parseDec(s []byte) uint64 {
-	n := uint64(0)
-	for _, c := range s {
-		n *= 10
-		n += uint64(c - '0')
-	}
-	return n
-}
-
-// hexDecode32big decodes sequences of 32bit big endian bytes.
-func hexDecode32big(src []byte) []byte {
-	dst := make([]byte, len(src)/2)
-	blocks := len(src) / 8
-	for block := 0; block < blocks; block++ {
-		for i := 0; i < 4; i++ {
-			a := fromHexChar(src[block*8+i*2])
-			b := fromHexChar(src[block*8+i*2+1])
-			dst[block*4+3-i] = (a << 4) | b
-		}
-	}
-	return dst
-}
-
-// fromHexChar converts a hex character into its value.
-func fromHexChar(c byte) uint8 {
-	switch {
-	case '0' <= c && c <= '9':
-		return c - '0'
-	case 'a' <= c && c <= 'f':
-		return c - 'a' + 10
-	case 'A' <= c && c <= 'F':
-		return c - 'A' + 10
-	}
-	return 0
 }

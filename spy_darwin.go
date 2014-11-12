@@ -11,7 +11,7 @@ const (
 
 // Connections returns all established (TCP) connections.
 // No need to be root to run this.
-var cbConnections = func() ([]Connection, error) {
+var cbConnections = func() (ConnIter, error) {
 	out, err := exec.Command(
 		netstatBinary,
 		"-n", // no number resolving
@@ -23,13 +23,15 @@ var cbConnections = func() ([]Connection, error) {
 		// log.Printf("lsof error: %s", err)
 		return nil, err
 	}
-	return parseDarwinNetstat(string(out)), nil
+
+	f := fixtConnIter(parseDarwinNetstat(string(out)))
+	return &f, nil
 }
 
-// Processes returns the list of connections with processes.
+// Processes returns map with Inode->Process. You can combine this with the
+// output from Connections.
 // You need to be root to find all processes.
-var cbProcesses = func([]Connection) ([]ConnectionProc, error) {
-	// argument isn't used in the Darwin version.
+var cbProcesses = func() (Procs, error) {
 	out, err := exec.Command(
 		lsofBinary,
 		"-i",       // only Internet files
@@ -38,7 +40,6 @@ var cbProcesses = func([]Connection) ([]ConnectionProc, error) {
 		"-F", lsofFields, // \n based output of only the fields we want.
 	).CombinedOutput()
 	if err != nil {
-		// log.Printf("lsof error: %s", err)
 		return nil, err
 	}
 	return parseLSOF(string(out))
