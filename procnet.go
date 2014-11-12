@@ -5,6 +5,7 @@ import (
 	"net"
 )
 
+// ProcNet an iterator to parse /proc/net/tcp{,6} files
 type ProcNet struct {
 	b                       []byte
 	c                       Connection
@@ -12,6 +13,7 @@ type ProcNet struct {
 	bytesLocal, bytesRemote [16]byte
 }
 
+// NewProcNet gives a new ProcNet parser.
 func NewProcNet(b []byte, wantedState uint) *ProcNet {
 	// Skip header
 	b = nextLine(b)
@@ -23,6 +25,8 @@ func NewProcNet(b []byte, wantedState uint) *ProcNet {
 	}
 }
 
+// Next returns the next connection. All buffers are re-used, so if you want to
+// keep the IPs you have to copy them.
 func (p *ProcNet) Next() *Connection {
 AGAIN:
 	if len(p.b) == 0 {
