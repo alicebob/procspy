@@ -181,14 +181,7 @@ func scanAddress(in []byte) (net.IP, uint16) {
 	}
 
 	// Network address is big endian. Can be either ipv4 or ipv6.
-	address := hexDecode(in[:col])
-
-	// reverse every 4 byte-sequence.
-	for i := 0; i < len(address); i += 4 {
-		address[i], address[i+3] = address[i+3], address[i]
-		address[i+1], address[i+2] = address[i+2], address[i+1]
-	}
-
+	address := hexDecode32big(in[:col])
 	return net.IP(address), uint16(parseHex(in[col+1:]))
 }
 
@@ -252,17 +245,16 @@ func parseDec(s []byte) uint64 {
 	return n
 }
 
-// hexDecode and fromHexChar are taken from encoding/hex.
-func hexDecode(src []byte) []byte {
-	if len(src)%2 == 1 {
-		return nil
-	}
-
+// hexDecode32big decodes sequences of 32bit big endian bytes.
+func hexDecode32big(src []byte) []byte {
 	dst := make([]byte, len(src)/2)
-	for i := 0; i < len(src)/2; i++ {
-		a := fromHexChar(src[i*2])
-		b := fromHexChar(src[i*2+1])
-		dst[i] = (a << 4) | b
+	blocks := len(src) / 8
+	for block := 0; block < blocks; block++ {
+		for i := 0; i < 4; i++ {
+			a := fromHexChar(src[block*8+i*2])
+			b := fromHexChar(src[block*8+i*2+1])
+			dst[block*4+3-i] = (a << 4) | b
+		}
 	}
 	return dst
 }

@@ -16,3 +16,7 @@ test:
 .PHONY: install
 install:
 	go install
+
+.PHONY: bench
+bench:
+	go test -bench .
