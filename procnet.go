@@ -32,25 +32,26 @@ AGAIN:
 	var (
 		local, remote, state, inode []byte
 	)
-	_, p.b = nextField(p.b) // 'sl' column
-	local, p.b = nextField(p.b)
-	remote, p.b = nextField(p.b)
-	state, p.b = nextField(p.b)
+	b := p.b
+	_, b = nextField(b) // 'sl' column
+	local, b = nextField(b)
+	remote, b = nextField(b)
+	state, b = nextField(b)
 	if parseHex(state) != p.wantedState {
-		p.b = nextLine(p.b)
+		p.b = nextLine(b)
 		goto AGAIN
 	}
-	_, p.b = nextField(p.b) // 'tx_queue' column
-	_, p.b = nextField(p.b) // 'rx_queue' column
-	_, p.b = nextField(p.b) // 'tr' column
-	_, p.b = nextField(p.b) // 'uid' column
-	_, p.b = nextField(p.b) // 'timeout' column
-	inode, p.b = nextField(p.b)
+	_, b = nextField(b) // 'tx_queue' column
+	_, b = nextField(b) // 'rx_queue' column
+	_, b = nextField(b) // 'tr' column
+	_, b = nextField(b) // 'uid' column
+	_, b = nextField(b) // 'timeout' column
+	inode, b = nextField(b)
 
 	p.c.LocalAddress, p.c.LocalPort = scanAddressNA(local, &p.bytesLocal)
 	p.c.RemoteAddress, p.c.RemotePort = scanAddressNA(remote, &p.bytesRemote)
 	p.c.inode = parseDec(inode)
-	p.b = nextLine(p.b)
+	p.b = nextLine(b)
 	return &p.c
 }
 
