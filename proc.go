@@ -28,6 +28,7 @@ func walkProcPid() (Procs, error) {
 		return nil, err
 	}
 	procmap := Procs{}
+	nameCache := make(map[uint64]string, len(dirNames))
 	var stat syscall.Stat_t
 	for _, dirName := range dirNames {
 		pid, err := strconv.ParseUint(dirName, 10, 0)
@@ -57,10 +58,14 @@ func walkProcPid() (Procs, error) {
 			if stat.Mode&syscall.S_IFMT != syscall.S_IFSOCK {
 				continue
 			}
-			name, err := procName(uint(pid))
-			if err != nil {
-				// Process might be gone by now
-				continue
+			name, ok := nameCache[pid]
+			if !ok {
+				name, err = procName(uint(pid))
+				if err != nil {
+					// Process might be gone by now
+					continue
+				}
+				nameCache[pid] = name
 			}
 			procmap[stat.Ino] = Proc{
 				PID:  uint(pid),
