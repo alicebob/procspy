@@ -4,21 +4,23 @@ package procspy
 // always be returned by the package-level Connections and Processes
 // functions. It's designed to be used in tests.
 
-type fixtConnIter []Connection
+type fixedConnIter []Connection
 
-func (f *fixtConnIter) Next() *Connection {
+func (f *fixedConnIter) Next() *Connection {
 	if len(*f) == 0 {
 		return nil
 	}
+
 	car := (*f)[0]
 	*f = (*f)[1:]
+
 	return &car
 }
 
 // SetFixtures is used in test scenarios to have known output.
 func SetFixtures(c []Connection, p Procs) {
 	cbConnections = func() (ConnIter, error) {
-		f := fixtConnIter(c)
+		f := fixedConnIter(c)
 		return &f, nil
 	}
 

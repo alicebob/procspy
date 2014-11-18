@@ -9,8 +9,8 @@ const (
 	lsofBinary    = "lsof"
 )
 
-// Connections returns all established (TCP) connections.
-// No need to be root to run this.
+// Connections returns all established (TCP) connections. No need to be root
+// to run this.
 var cbConnections = func() (ConnIter, error) {
 	out, err := exec.Command(
 		netstatBinary,
@@ -24,13 +24,12 @@ var cbConnections = func() (ConnIter, error) {
 		return nil, err
 	}
 
-	f := fixtConnIter(parseDarwinNetstat(string(out)))
+	f := fixedConnIter(parseDarwinNetstat(string(out)))
 	return &f, nil
 }
 
 // Processes returns map with Inode->Process. You can combine this with the
-// output from Connections.
-// You need to be root to find all processes.
+// output from Connections. You need to be root to find all processes.
 var cbProcesses = func() (Procs, error) {
 	out, err := exec.Command(
 		lsofBinary,
@@ -42,5 +41,6 @@ var cbProcesses = func() (Procs, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return parseLSOF(string(out))
 }

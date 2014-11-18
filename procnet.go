@@ -5,7 +5,7 @@ import (
 	"net"
 )
 
-// ProcNet an iterator to parse /proc/net/tcp{,6} files
+// ProcNet is an iterator to parse /proc/net/tcp{,6} files.
 type ProcNet struct {
 	b                       []byte
 	c                       Connection
@@ -15,7 +15,6 @@ type ProcNet struct {
 
 // NewProcNet gives a new ProcNet parser.
 func NewProcNet(b []byte, wantedState uint) *ProcNet {
-
 	return &ProcNet{
 		b:           b,
 		c:           Connection{},
@@ -23,10 +22,10 @@ func NewProcNet(b []byte, wantedState uint) *ProcNet {
 	}
 }
 
-// Next returns the next connection. All buffers are re-used, so if you want to
-// keep the IPs you have to copy them.
+// Next returns the next connection. All buffers are re-used, so if you want
+// to keep the IPs you have to copy them.
 func (p *ProcNet) Next() *Connection {
-AGAIN:
+again:
 	if len(p.b) == 0 {
 		return nil
 	}
@@ -35,7 +34,7 @@ AGAIN:
 	if p.b[2] == 's' {
 		// Skip header
 		p.b = nextLine(b)
-		goto AGAIN
+		goto again
 	}
 
 	var (
@@ -47,7 +46,7 @@ AGAIN:
 	state, b = nextField(b)
 	if parseHex(state) != p.wantedState {
 		p.b = nextLine(b)
-		goto AGAIN
+		goto again
 	}
 	_, b = nextField(b) // 'tx_queue' column
 	_, b = nextField(b) // 'rx_queue' column
@@ -63,8 +62,8 @@ AGAIN:
 	return &p.c
 }
 
-// scanAddress parses 'A12CF62E:00AA' to the address/port. Handles IPv4 and
-// IPv6 addresses.  The address is a big endian 32 bit ints, hex encoded. We
+// scanAddressNA parses 'A12CF62E:00AA' to the address/port. Handles IPv4 and
+// IPv6 addresses. The address is a big endian 32 bit ints, hex encoded. We
 // just decode the hex and flip the bytes in every group of 4.
 func scanAddressNA(in []byte, buf *[16]byte) (net.IP, uint16) {
 	col := bytes.IndexByte(in, ':')
