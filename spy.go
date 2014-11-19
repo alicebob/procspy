@@ -22,7 +22,7 @@ type Connection struct {
 	Proc
 }
 
-// Proc is a single connection with PID/process name.
+// Proc is a single process with PID and process name.
 type Proc struct {
 	PID  uint
 	Name string
@@ -33,10 +33,11 @@ type ConnIter interface {
 	Next() *Connection
 }
 
-// Connections returns all established (TCP) connections.
-// No need to be root to run this. If processes is true we'll try to lookup the
-// process owning the connection. You will need to run this as root to find all
-// processes.
+// Connections returns all established (TCP) connections.  If processes is
+// false we'll just list all TCP connections, and there is no need to be root.
+// If processes is true it'll additionally try to lookup the process owning the
+// connection, filling in the Proc field. You will need to run this as root to
+// find all processes.
 func Connections(processes bool) (ConnIter, error) {
 	return cbConnections(processes)
 }
