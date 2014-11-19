@@ -16,7 +16,7 @@ const (
 // walkProcPid walks over all numerical (PID) /proc entries, and sees if their
 // ./fd/* files are symlink to sockets. Returns a map from socket ID (inode)
 // to PID. Will return an error if /proc isn't there.
-func walkProcPid() (Procs, error) {
+func walkProcPid() (map[uint64]Proc, error) {
 	fh, err := os.Open(procRoot)
 	if err != nil {
 		return nil, err
@@ -29,7 +29,7 @@ func walkProcPid() (Procs, error) {
 	}
 
 	var (
-		res       = Procs{}
+		res       = map[uint64]Proc{}
 		nameCache = make(map[uint64]string, len(dirNames))
 		stat      syscall.Stat_t
 	)

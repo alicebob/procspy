@@ -9,10 +9,10 @@ import (
 )
 
 var (
-	lsofFields = "cPi" // parseLSOF() depends on the order
+	lsofFields = "cn" // parseLSOF() depends on the order
 )
 
-// parseLsof parses lsof out with `-F cPn` argument.
+// parseLsof parses lsof out with `-F cn` argument.
 //
 // Format description: the first letter is the type of record, records are
 // newline seperated, the record starting with 'p' (pid) is a new processid.
@@ -23,16 +23,13 @@ var (
 //
 //   p13100
 //   cmpd
-//   PTCP
 //   n[::1]:6600
-//   PTCP
 //   n127.0.0.1:6600
-//   PTCP
 //   n[::1]:6600->[::1]:50992
 //
-func parseLSOF(out string) (Procs, error) {
+func parseLSOF(out string) (map[string]Proc, error) {
 	var (
-		res = Procs{}
+		res = map[string]Proc{} // Local addr -> Proc
 		cp  = Proc{}
 	)
 	for _, line := range strings.Split(out, "\n") {
@@ -52,18 +49,27 @@ func parseLSOF(out string) (Procs, error) {
 			}
 			cp.PID = uint(pid)
 
-		case 'i':
-			inode, err := strconv.Atoi(value)
-			if err != nil {
-				return nil, fmt.Errorf("invalid 'i' field in lsof output: %#v", value)
+		case 'n':
+			// 'n' is the last field, with '-F cn'
+			// format examples:
+			// "192.168.2.111:44013->54.229.241.196:80"
+			// "[2003:45:2b57:8900:1869:2947:f942:aba7]:55711->[2a00:1450:4008:c01::11]:443"
+			// "*:111" <- a listen
+			addresses := strings.SplitN(value, "->", 2)
+			if len(addresses) != 2 {
+				// That's a listen entry.
+				continue
 			}
-			res[uint64(inode)] = cp
+			res[addresses[0]] = Proc{
+				Name: cp.Name,
+				PID:  cp.PID,
+			}
 
 		case 'c':
 			cp.Name = value
 
 		default:
-			return nil, fmt.Errorf("unexpected lsof field: %v in %#v", field, value)
+			return nil, fmt.Errorf("unexpected lsof field: %c in %#v", field, value)
 		}
 	}
 

@@ -7,21 +7,12 @@ import (
 )
 
 func main() {
-	cs, err := procspy.Connections()
+	cs, err := procspy.Connections(true)
 	if err != nil {
 		panic(err)
 	}
 	fmt.Printf("TCP Connections:\n")
-	for _, c := range cs {
-		fmt.Printf(" - %v\n", c)
-	}
-
-	ps, err := procspy.Processes(cs)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Printf("Processes:\n")
-	for _, p := range ps {
-		fmt.Printf(" - %v\n", p)
+	for c := cs.Next(); c != nil; c = cs.Next() {
+		fmt.Printf(" - %+v\n", c)
 	}
 }
