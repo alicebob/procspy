@@ -45,13 +45,13 @@ var cbConnections = func(processes bool) (ConnIter, error) {
 			return nil, err
 		}
 		for local, proc := range procs {
-			for _, c := range connections {
+			for i, c := range connections {
 				localAddr := net.JoinHostPort(
 					c.LocalAddress.String(),
 					strconv.Itoa(int(c.LocalPort)),
 				)
 				if localAddr == local {
-					c.Proc = proc
+					connections[i].Proc = proc
 				}
 			}
 		}
