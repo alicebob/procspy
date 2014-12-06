@@ -3,9 +3,11 @@ package procspy
 // /proc-based implementation.
 
 import (
+	"bufio"
 	"bytes"
 	"os"
 	"strconv"
+	"strings"
 	"syscall"
 )
 
@@ -15,7 +17,7 @@ const (
 
 // walkProcPid walks over all numerical (PID) /proc entries, and sees if their
 // ./fd/* files are symlink to sockets. Returns a map from socket ID (inode)
-// to PID. Will return an error if /proc isn't there.
+// to Proc struct. Will return an error if /proc isn't there.
 func walkProcPid() (map[uint64]Proc, error) {
 	fh, err := os.Open(procRoot)
 	if err != nil {
@@ -39,6 +41,8 @@ func walkProcPid() (map[uint64]Proc, error) {
 			// Not a number, so not a PID subdir.
 			continue
 		}
+
+		ppid := statusPPID(procRoot + "/" + dirName + "/status")
 
 		fdBase := procRoot + "/" + dirName + "/fd/"
 		dfh, err := os.Open(fdBase)
@@ -77,6 +81,7 @@ func walkProcPid() (map[uint64]Proc, error) {
 
 			res[stat.Ino] = Proc{
 				PID:  uint(pid),
+				PPID: ppid,
 				Name: name,
 			}
 		}
@@ -105,6 +110,31 @@ func procName(pid uint) (string, error) {
 
 	// drop trailing "\n"
 	return string(name[:l-1]), nil
+}
+
+// statusPPID finds the Parent Process ID from a /proc/*/status file.
+func statusPPID(file string) uint {
+	var (
+		prefix = "PPid:\t"
+	)
+
+	f, err := os.Open(file)
+	if err != nil {
+		return 0
+	}
+	defer f.Close()
+
+	r := bufio.NewReader(f)
+	for {
+		l, err := r.ReadString('\n')
+		if err != nil {
+			return 0
+		}
+		if strings.HasPrefix(l, prefix) {
+			ppid, _ := strconv.Atoi(l[len(prefix) : len(l)-1])
+			return uint(ppid)
+		}
+	}
 }
 
 // readFile reads an arbitrary file into a buffer. It's a variable so it can

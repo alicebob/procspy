@@ -1,6 +1,6 @@
 // Package procspy lists TCP connections, and optionally tries to find the
 // owning processes. Works on Linux (via /proc) and Darwin (via `lsof -i` and
-// `netstat`). You'll need root to use Processes().
+// `netstat`). You'll need root to find all processes.
 package procspy
 
 import (
@@ -22,9 +22,10 @@ type Connection struct {
 	Proc
 }
 
-// Proc is a single process with PID and process name.
+// Proc is a single process with PID, parent PID, and process name.
 type Proc struct {
 	PID  uint
+	PPID uint
 	Name string
 }
 
