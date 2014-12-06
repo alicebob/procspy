@@ -29,9 +29,8 @@ func walkProcPid() (map[uint64]Proc, error) {
 	}
 
 	var (
-		res       = map[uint64]Proc{}
-		nameCache = make(map[uint64]string, len(dirNames))
-		stat      syscall.Stat_t
+		res  = map[uint64]Proc{}
+		stat syscall.Stat_t
 	)
 	for _, dirName := range dirNames {
 		pid, err := strconv.ParseUint(dirName, 10, 0)
@@ -53,6 +52,12 @@ func walkProcPid() (map[uint64]Proc, error) {
 			continue
 		}
 
+		name := procName(procRoot + "/" + dirName)
+		if name == "" {
+			// Process might be gone by now
+			continue
+		}
+
 		for _, fdName := range fdNames {
 			// Direct use of syscall.Stat() to save garbage.
 			err = syscall.Stat(fdBase+fdName, &stat)
@@ -63,16 +68,6 @@ func walkProcPid() (map[uint64]Proc, error) {
 			// We want sockets only.
 			if stat.Mode&syscall.S_IFMT != syscall.S_IFSOCK {
 				continue
-			}
-
-			name, ok := nameCache[pid]
-			if !ok {
-				name, err = procName(uint(pid))
-				if err != nil {
-					// Process might be gone by now
-					continue
-				}
-				nameCache[pid] = name
 			}
 
 			res[stat.Ino] = Proc{
@@ -86,25 +81,25 @@ func walkProcPid() (map[uint64]Proc, error) {
 }
 
 // procName does a pid->name lookup.
-func procName(pid uint) (string, error) {
-	fh, err := os.Open(procRoot + "/" + strconv.FormatUint(uint64(pid), 10) + "/comm")
+func procName(base string) string {
+	fh, err := os.Open(base + "/comm")
 	if err != nil {
-		return "", err
+		return ""
 	}
 
-	name := make([]byte, 1024)
+	name := make([]byte, 64)
 	l, err := fh.Read(name)
 	fh.Close()
 	if err != nil {
-		return "", err
+		return ""
 	}
 
 	if l < 2 {
-		return "", nil
+		return ""
 	}
 
 	// drop trailing "\n"
-	return string(name[:l-1]), nil
+	return string(name[:l-1])
 }
 
 // readFile reads an arbitrary file into a buffer. It's a variable so it can
