@@ -1,22 +1,20 @@
-.PHONY: all
-all: test build install
+.PHONY: all build buildall test install bench
+all: test build buildall install
 
-.PHONY: build
 build: 
 	go build
 	go vet
 	golint .
 
-.PHONY: test
-test:
-	go test
+buildall:
 	GOOS=darwin go build
 	GOOS=linux go build
 
-.PHONY: install
+test:
+	go test
+
 install:
 	go install
 
-.PHONY: bench
 bench:
 	go test -bench .
