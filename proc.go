@@ -52,11 +52,7 @@ func walkProcPid() (map[uint64]Proc, error) {
 			continue
 		}
 
-		name := procName(procRoot + "/" + dirName)
-		if name == "" {
-			// Process might be gone by now
-			continue
-		}
+		var name string
 
 		for _, fdName := range fdNames {
 			// Direct use of syscall.Stat() to save garbage.
@@ -68,6 +64,13 @@ func walkProcPid() (map[uint64]Proc, error) {
 			// We want sockets only.
 			if stat.Mode&syscall.S_IFMT != syscall.S_IFSOCK {
 				continue
+			}
+
+			if name == "" {
+				if name = procName(procRoot + "/" + dirName); name == "" {
+					// Process might be gone by now
+					break
+				}
 			}
 
 			res[stat.Ino] = Proc{
