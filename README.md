@@ -21,11 +21,21 @@ Usage:
 
 Only list the connections:
 
-`conns, err := procspy.Connections(false)`
+```
+cs, err := procspy.Connections(false)
+for c := cs.Next(); c != nil; c = cs.Next() {
+    ...
+}
+```
 
 List the connections and try to find the owning process:
 
-`conns, err := procspy.Connections(true)`
+```
+cs, err := procspy.Connections(true)
+for c := cs.Next(); c != nil; c = cs.Next() {
+    ...
+}
+```
 
 (See ./example\_test.go)
 
@@ -40,12 +50,14 @@ import (
 )
 
 func main() {
-	cs, err := procspy.Connections(false)
+	lookupProcesses := true
+	cs, err := procspy.Connections(lookupProcesses)
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("Connections:\n")
-	for _, c := range cs {
+
+	fmt.Printf("TCP Connections:\n")
+	for c := cs.Next(); c != nil; c = cs.Next() {
 		fmt.Printf(" - %v\n", c)
 	}
 }
