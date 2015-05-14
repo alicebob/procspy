@@ -9,9 +9,14 @@ import (
 	"syscall"
 )
 
-const (
+var (
 	procRoot = "/proc"
 )
+
+// SetProcRoot sets the location of the proc filesystem.
+func SetProcRoot(root string) {
+	procRoot = root
+}
 
 // walkProcPid walks over all numerical (PID) /proc entries, and sees if their
 // ./fd/* files are symlink to sockets. Returns a map from socket ID (inode)
