@@ -5,6 +5,7 @@ package procspy
 import (
 	"bytes"
 	"os"
+	"path/filepath"
 	"strconv"
 	"syscall"
 )
@@ -21,7 +22,7 @@ func SetProcRoot(root string) {
 // walkProcPid walks over all numerical (PID) /proc entries, and sees if their
 // ./fd/* files are symlink to sockets. Returns a map from socket ID (inode)
 // to PID. Will return an error if /proc isn't there.
-func walkProcPid() (map[uint64]Proc, error) {
+func walkProcPid(buf *bytes.Buffer) (map[uint64]Proc, error) {
 	fh, err := os.Open(procRoot)
 	if err != nil {
 		return nil, err
@@ -34,8 +35,9 @@ func walkProcPid() (map[uint64]Proc, error) {
 	}
 
 	var (
-		res  = map[uint64]Proc{}
-		stat syscall.Stat_t
+		res        = map[uint64]Proc{}
+		namespaces = map[uint64]struct{}{}
+		stat       syscall.Stat_t
 	)
 	for _, dirName := range dirNames {
 		pid, err := strconv.ParseUint(dirName, 10, 0)
@@ -44,7 +46,7 @@ func walkProcPid() (map[uint64]Proc, error) {
 			continue
 		}
 
-		fdBase := procRoot + "/" + dirName + "/fd/"
+		fdBase := filepath.Join(procRoot, dirName, "fd")
 		dfh, err := os.Open(fdBase)
 		if err != nil {
 			// Process is be gone by now, or we don't have access.
@@ -57,11 +59,23 @@ func walkProcPid() (map[uint64]Proc, error) {
 			continue
 		}
 
-		var name string
+		// Read network namespace, and if we haven't seen it before,
+		// read /proc/<pid>/net/tcp
+		err = syscall.Lstat(filepath.Join(procRoot, dirName, "/ns/net"), &stat)
+		if err != nil {
+			continue
+		}
 
+		if _, ok := namespaces[stat.Ino]; !ok {
+			namespaces[stat.Ino] = struct{}{}
+			readFile(filepath.Join(procRoot, dirName, "/net/tcp"), buf)
+			readFile(filepath.Join(procRoot, dirName, "/net/tcp6"), buf)
+		}
+
+		var name string
 		for _, fdName := range fdNames {
 			// Direct use of syscall.Stat() to save garbage.
-			err = syscall.Stat(fdBase+fdName, &stat)
+			err = syscall.Stat(filepath.Join(fdBase, fdName), &stat)
 			if err != nil {
 				continue
 			}
@@ -72,7 +86,7 @@ func walkProcPid() (map[uint64]Proc, error) {
 			}
 
 			if name == "" {
-				if name = procName(procRoot + "/" + dirName); name == "" {
+				if name = procName(filepath.Join(procRoot, dirName)); name == "" {
 					// Process might be gone by now
 					break
 				}
@@ -90,7 +104,7 @@ func walkProcPid() (map[uint64]Proc, error) {
 
 // procName does a pid->name lookup.
 func procName(base string) string {
-	fh, err := os.Open(base + "/comm")
+	fh, err := os.Open(filepath.Join(base, "/comm"))
 	if err != nil {
 		return ""
 	}
