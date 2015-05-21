@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"syscall"
+	"fmt"
 )
 
 var (
@@ -21,7 +22,7 @@ func SetProcRoot(root string) {
 // walkProcPid walks over all numerical (PID) /proc entries, and sees if their
 // ./fd/* files are symlink to sockets. Returns a map from socket ID (inode)
 // to PID. Will return an error if /proc isn't there.
-func walkProcPid() (map[uint64]Proc, error) {
+func walkProcPid(namespaces *map[uint64]struct{}, connBuff *bytes.Buffer) (map[uint64]Proc, error) {
 	fh, err := os.Open(procRoot)
 	if err != nil {
 		return nil, err
@@ -57,8 +58,20 @@ func walkProcPid() (map[uint64]Proc, error) {
 			continue
 		}
 
-		var name string
+		// Read network namespace, and if we haven't seen it before,
+		// read /proc/<pid>/net/tcp
+		err = syscall.Lstat(fmt.Sprintf("%s/%d/ns/net", procRoot, pid), &stat)
+		if err != nil {
+			continue
+		}
 
+		if _, ok := (*namespaces)[stat.Ino]; !ok {
+			(*namespaces)[stat.Ino] = struct{}{}
+			readFile(fmt.Sprintf("%s/%d/net/tcp", procRoot, pid), connBuff)
+			readFile(fmt.Sprintf("%s/%d/net/tcp6", procRoot, pid), connBuff)
+		}
+
+		var name string
 		for _, fdName := range fdNames {
 			// Direct use of syscall.Stat() to save garbage.
 			err = syscall.Stat(fdBase+fdName, &stat)
