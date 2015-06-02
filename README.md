@@ -1,3 +1,8 @@
+Note: https://github.com/weaveworks/procspy is the more actively maintained version of this library.
+
+Procspy:
+--------
+
 Go module to list all TCP connections, with an option to try to find the owning PID and processname.
 
 Works by reading /proc directly on Linux, and by executing `netstat` and `lsof -i` on Darwin.
