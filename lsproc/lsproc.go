@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/alicebob/procspy"
+	"github.com/weaveworks/procspy"
 )
 
 func main() {
