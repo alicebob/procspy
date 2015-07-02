@@ -11,6 +11,7 @@ type ProcNet struct {
 	c                       Connection
 	wantedState             uint
 	bytesLocal, bytesRemote [16]byte
+	seen                    map[uint64]struct{}
 }
 
 // NewProcNet gives a new ProcNet parser.
@@ -19,6 +20,7 @@ func NewProcNet(b []byte, wantedState uint) *ProcNet {
 		b:           b,
 		c:           Connection{},
 		wantedState: wantedState,
+		seen:        map[uint64]struct{}{},
 	}
 }
 
@@ -59,6 +61,10 @@ again:
 	p.c.RemoteAddress, p.c.RemotePort = scanAddressNA(remote, &p.bytesRemote)
 	p.c.inode = parseDec(inode)
 	p.b = nextLine(b)
+	if _, alreadySeen := p.seen[p.c.inode]; alreadySeen {
+		goto again
+	}
+	p.seen[p.c.inode] = struct{}{}
 	return &p.c
 }
 
