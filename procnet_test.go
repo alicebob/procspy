@@ -136,3 +136,27 @@ broken line
 	}
 
 }
+
+func TestProcNetFiltersDuplicates(t *testing.T) {
+	testString := `  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout Inode                                                     
+   0: 00000000:A6C0 00000000:0000 01 00000000:00000000 00:00000000 00000000   105        0 5107 1 ffff8800a6aaf040 100 0 0 10 0                      
+   1: 00000000:A6C0 00000000:0000 01 00000000:00000000 00:00000000 00000000   105        0 5107 1 ffff8800a6aaf040 100 0 0 10 0                      
+`
+	p := NewProcNet([]byte(testString), tcpEstablished)
+	expected := Connection{
+		LocalAddress:  net.IP([]byte{0, 0, 0, 0}),
+		LocalPort:     0xa6c0,
+		RemoteAddress: net.IP([]byte{0, 0, 0, 0}),
+		RemotePort:    0x0,
+		inode:         5107,
+	}
+	have := p.Next()
+	want := expected
+	if !reflect.DeepEqual(*have, want) {
+		t.Errorf("transport 4 error. Got\n%+v\nExpected\n%+v\n", *have, want)
+	}
+	if got := p.Next(); got != nil {
+		t.Errorf("p.Next() wasn't empty")
+	}
+
+}
