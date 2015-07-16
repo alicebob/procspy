@@ -14,7 +14,7 @@ func Example() {
 	}
 
 	fmt.Printf("TCP Connections:\n")
-	for _, c := range cs {
+	for c := cs.Next(); c != nil; c = cs.Next() {
 		fmt.Printf(" - %v\n", c)
 	}
 }
